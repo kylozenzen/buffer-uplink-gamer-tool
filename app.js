@@ -51,6 +51,14 @@ const els = {
   tplTwitchBtn: document.getElementById('tplTwitchBtn'),
   tplRemoveImageBtn: document.getElementById('tplRemoveImageBtn'),
   tplImageStatus: document.getElementById('tplImageStatus'),
+  tplUrlBtn: document.getElementById('tplUrlBtn'),
+  tplUrlPanel: document.getElementById('tplUrlPanel'),
+  tplImageUrlInput: document.getElementById('tplImageUrlInput'),
+  tplImageUrlUseBtn: document.getElementById('tplImageUrlUseBtn'),
+  tplReuseBtn: document.getElementById('tplReuseBtn'),
+  tplReusePanel: document.getElementById('tplReusePanel'),
+  tplBrowsePostsBtn: document.getElementById('tplBrowsePostsBtn'),
+  tplBrowsePanel: document.getElementById('tplBrowsePanel'),
   transmitOverlay: document.getElementById('transmitOverlay'),
   transmitStamp: document.getElementById('transmitStamp'),
   screenFlash: document.getElementById('screenFlash'),
@@ -137,8 +145,8 @@ els.connectBtn.addEventListener('click', async () => {
     renderTemplatesTab();
   } catch (err) {
     localStorage.removeItem(STORAGE.key);
-    els.setupError.textContent = isExpiredKeyError(err)
-      ? 'That key was rejected by Buffer — it may be expired or mistyped. Generate a fresh one in Buffer under Settings → API.'
+    els.setupError.textContent = isAuthError(err)
+      ? `Buffer rejected that key: ${err.message}. Generate a fresh one in Buffer under Settings → API and make sure it has the right scopes.`
       : 'Could not reach Buffer with that key: ' + err.message;
     els.setupError.style.display = 'block';
   } finally {
@@ -178,8 +186,13 @@ async function bufferRequest(key, query, variables) {
   return data;
 }
 
-function isExpiredKeyError(err) {
-  return err?.code === 'AUTH_ERROR' || /unauthorized|invalid|expired|forbidden/i.test(String(err?.message || ''));
+function isAuthError(err) {
+  // Strict: only trust the HTTP-status-derived code from the proxy
+  // (401/403 -> AUTH_ERROR). The old version also regex-matched words
+  // like "invalid" or "expired" anywhere in the message, which meant
+  // ANY unrelated Buffer error (bad channelId, rejected field, etc.)
+  // got mislabeled as "your key was rejected" and hid the real reason.
+  return err?.code === 'AUTH_ERROR';
 }
 
 async function fetchChannels(key) {
@@ -217,7 +230,8 @@ async function sendUplink(template) {
   const results = await Promise.allSettled(targets.map(channel => postOne(key, channel, template)));
   const okCount = results.filter(r => r.status === 'fulfilled').length;
   const failCount = results.length - okCount;
-  const anyExpired = results.some(r => r.status === 'rejected' && isExpiredKeyError(r.reason));
+  const anyExpired = results.some(r => r.status === 'rejected' && isAuthError(r.reason));
+  const firstError = results.find(r => r.status === 'rejected')?.reason;
 
   els.sendBtn.disabled = false;
   els.sendBtn.textContent = 'Send Uplink';
@@ -225,12 +239,12 @@ async function sendUplink(template) {
   hideTransmitLoading();
 
   if (anyExpired) {
-    els.sendLog.textContent = 'Your Buffer key was rejected — likely expired. Generate a new one and reconnect in Settings.';
+    els.sendLog.textContent = `Buffer rejected your key: ${firstError?.message || 'unauthorized'}. Generate a new one and reconnect in Settings.`;
     playTransmitFailAnimation();
   } else {
     els.sendLog.textContent = failCount === 0
       ? `Sent to ${okCount} channel${okCount === 1 ? '' : 's'}.`
-      : `Sent to ${okCount}, failed on ${failCount}. Check Settings → Connection.`;
+      : `Sent to ${okCount}, failed on ${failCount}: ${firstError?.message || 'unknown error'}.`;
     if (okCount > 0) playTransmitAnimation();
     else playTransmitFailAnimation();
   }
@@ -294,8 +308,8 @@ els.refreshChannels.addEventListener('click', async () => {
   try {
     await fetchChannels(key);
   } catch (err) {
-    els.sendLog.textContent = isExpiredKeyError(err)
-      ? 'Your Buffer key was rejected — likely expired. Generate a new one in Buffer and reconnect in Settings.'
+    els.sendLog.textContent = isAuthError(err)
+      ? `Buffer rejected your key: ${err.message}. Generate a new one in Buffer and reconnect in Settings.`
       : 'Refresh failed: ' + err.message;
   }
   els.refreshChannels.textContent = 'Refresh';
@@ -404,6 +418,7 @@ function openTemplateModal(id) {
   els.tplCopy.value = t ? t.copy : '';
   setTemplateImage(t ? t.image : '');
   els.tplImageStatus.textContent = '';
+  hideMediaPanels();
   els.tplModal.classList.add('show');
 }
 
@@ -512,6 +527,183 @@ els.tplTwitchBtn.addEventListener('click', async () => {
   }
   setTemplateImage(data.thumbnailUrl);
   els.tplImageStatus.textContent = 'Pulled your current live thumbnail.';
+});
+
+// ---------- more photo sources: paste URL, reuse a template, browse past posts ----------
+function hideMediaPanels() {
+  els.tplUrlPanel.style.display = 'none';
+  els.tplReusePanel.style.display = 'none';
+  els.tplBrowsePanel.style.display = 'none';
+}
+
+els.tplUrlBtn.addEventListener('click', () => {
+  const opening = els.tplUrlPanel.style.display === 'none';
+  hideMediaPanels();
+  if (!opening) return;
+  els.tplUrlPanel.style.display = 'block';
+  els.tplImageUrlInput.value = '';
+  els.tplImageUrlInput.focus();
+});
+
+els.tplImageUrlUseBtn.addEventListener('click', () => {
+  const url = els.tplImageUrlInput.value.trim();
+  if (!url) return;
+  setTemplateImage(url);
+  els.tplImageStatus.textContent = 'Using pasted image URL.';
+  hideMediaPanels();
+});
+
+els.tplImageUrlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); els.tplImageUrlUseBtn.click(); }
+});
+
+els.tplReuseBtn.addEventListener('click', () => {
+  const opening = els.tplReusePanel.style.display === 'none';
+  hideMediaPanels();
+  if (!opening) return;
+  const withImages = state.templates.filter(t => t.image && t.id !== state.editingTemplateId);
+  els.tplReusePanel.innerHTML = '';
+  if (withImages.length === 0) {
+    els.tplReusePanel.innerHTML = '<div class="empty-note">No other templates have a saved photo yet.</div>';
+  } else {
+    els.tplReusePanel.classList.add('reuse-grid');
+    withImages.forEach(t => {
+      const thumb = document.createElement('div');
+      thumb.className = 'reuse-thumb';
+      thumb.style.backgroundImage = `url("${t.image}")`;
+      thumb.title = t.label;
+      thumb.addEventListener('click', () => {
+        setTemplateImage(t.image);
+        els.tplImageStatus.textContent = `Reused photo from "${t.label}".`;
+        hideMediaPanels();
+      });
+      els.tplReusePanel.appendChild(thumb);
+    });
+  }
+  els.tplReusePanel.style.display = 'block';
+});
+
+// Buffer's public schema for reading media BACK off a sent post isn't
+// documented anywhere we've verified (PostIQ's own post-library query only
+// ever reads text + metrics, never media). So instead of guessing a field
+// shape and hoping, this introspects the Post type first to find the real
+// field name, then tries a short list of plausible sub-selections until one
+// doesn't get rejected. Worst case, it degrades to a clear empty state
+// telling Ben to paste a URL instead of silently failing.
+async function fetchRecentPostsWithMedia(key) {
+  const orgId = localStorage.getItem(STORAGE.orgId);
+  if (!orgId) throw new Error('No organization on file yet — hit Refresh on the Console tab first.');
+
+  const introspectQuery = `query { __type(name: "Post") { fields { name } } }`;
+  const introspectData = await bufferRequest(key, introspectQuery, {});
+  const fieldNames = (introspectData?.data?.__type?.fields || []).map(f => f.name);
+  const mediaField =
+    fieldNames.find(n => /^(assets|media|attachments|images)$/i.test(n)) ||
+    fieldNames.find(n => /asset|media|attach|image/i.test(n)) ||
+    null;
+
+  const runPosts = async (nodeExtra) => {
+    const query = `query GetRecent($organizationId: OrganizationId!, $first: Int!) {
+      posts(first: $first, input: { organizationId: $organizationId, filter: { status: [sent] } }) {
+        edges { node { id text dueAt channelId${nodeExtra ? ` ${nodeExtra}` : ''} } }
+      }
+    }`;
+    const data = await bufferRequest(key, query, { organizationId: orgId, first: 20 });
+    return (data?.data?.posts?.edges || []).map(e => e.node);
+  };
+
+  if (!mediaField) {
+    const posts = await runPosts('');
+    return { posts: posts.map(p => ({ ...p, imageUrl: null })), mediaField: null };
+  }
+
+  const candidateShapes = [
+    `${mediaField} { ... on ImageAsset { url } }`,
+    `${mediaField} { images { url } }`,
+    `${mediaField} { image { url } }`,
+    `${mediaField} { url }`,
+    `${mediaField}`,
+  ];
+
+  for (const shape of candidateShapes) {
+    try {
+      const posts = await runPosts(shape);
+      const withUrls = posts.map(p => ({ ...p, imageUrl: extractImageUrl(p[mediaField]) }));
+      return { posts: withUrls, mediaField, shapeUsed: shape };
+    } catch (err) {
+      const msg = String(err.message || '');
+      // wrong field shape — try the next guess. Anything else (auth, network) should bubble up.
+      if (!/cannot query field|does not exist|unknown field/i.test(msg)) throw err;
+    }
+  }
+
+  const posts = await runPosts('');
+  return { posts: posts.map(p => ({ ...p, imageUrl: null })), mediaField, shapeUsed: null };
+}
+
+function extractImageUrl(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return /^https?:\/\//.test(value) ? value : null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractImageUrl(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof value === 'object') {
+    if (typeof value.url === 'string') return value.url;
+    if (value.image) return extractImageUrl(value.image);
+    if (Array.isArray(value.images)) return extractImageUrl(value.images);
+  }
+  return null;
+}
+
+els.tplBrowsePostsBtn.addEventListener('click', async () => {
+  const opening = els.tplBrowsePanel.style.display === 'none';
+  hideMediaPanels();
+  if (!opening) return;
+  els.tplBrowsePanel.style.display = 'block';
+  els.tplBrowsePanel.innerHTML = '<div class="empty-note">Checking your recent Buffer posts…</div>';
+  const key = localStorage.getItem(STORAGE.key);
+  try {
+    const { posts, mediaField } = await fetchRecentPostsWithMedia(key);
+    if (!mediaField) {
+      els.tplBrowsePanel.innerHTML = '<div class="empty-note">Buffer didn\'t expose a media field on this account\'s API — paste an image URL instead.</div>';
+      return;
+    }
+    const withImages = posts.filter(p => p.imageUrl);
+    if (withImages.length === 0) {
+      els.tplBrowsePanel.innerHTML = '<div class="empty-note">Found recent posts but couldn\'t resolve any image URLs from them — paste one manually instead.</div>';
+      return;
+    }
+    const list = document.createElement('div');
+    list.className = 'browse-list';
+    withImages.slice(0, 12).forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'browse-item';
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      thumb.style.backgroundImage = `url("${p.imageUrl}")`;
+      const txt = document.createElement('div');
+      txt.className = 'txt';
+      txt.textContent = p.text || '(no text)';
+      const useBtn = document.createElement('button');
+      useBtn.type = 'button';
+      useBtn.textContent = 'Use';
+      useBtn.addEventListener('click', () => {
+        setTemplateImage(p.imageUrl);
+        els.tplImageStatus.textContent = 'Reused image from a past post.';
+        hideMediaPanels();
+      });
+      row.append(thumb, txt, useBtn);
+      list.appendChild(row);
+    });
+    els.tplBrowsePanel.innerHTML = '';
+    els.tplBrowsePanel.appendChild(list);
+  } catch (err) {
+    els.tplBrowsePanel.innerHTML = `<div class="empty-note">Couldn't load past posts: ${escapeHtml(err.message || 'unknown error')}</div>`;
+  }
 });
 
 // ---------- photo upload ----------
