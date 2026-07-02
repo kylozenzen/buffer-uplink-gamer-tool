@@ -15,6 +15,7 @@ const STORAGE = {
   selectedChannels: 'uplink_selected_channels',
   activeTemplate: 'uplink_active_template',
   twitchLogin: 'uplink_twitch_login',
+  streamLink: 'uplink_stream_link',
 };
 
 const els = {
@@ -51,7 +52,13 @@ const els = {
   tplRemoveImageBtn: document.getElementById('tplRemoveImageBtn'),
   tplImageStatus: document.getElementById('tplImageStatus'),
   transmitOverlay: document.getElementById('transmitOverlay'),
+  transmitStamp: document.getElementById('transmitStamp'),
   screenFlash: document.getElementById('screenFlash'),
+  streamLinkInput: document.getElementById('streamLinkInput'),
+  saveStreamLinkBtn: document.getElementById('saveStreamLinkBtn'),
+  streamLinkSaveStatus: document.getElementById('streamLinkSaveStatus'),
+  tplInsertLinkBtn: document.getElementById('tplInsertLinkBtn'),
+  tplInsertLinkStatus: document.getElementById('tplInsertLinkStatus'),
 };
 
 let state = {
@@ -89,6 +96,7 @@ function boot() {
     renderTemplatesTab();
     if (state.channels.length === 0) fetchChannels(key);
     els.twitchLoginInput.value = localStorage.getItem(STORAGE.twitchLogin) || '';
+    els.streamLinkInput.value = localStorage.getItem(STORAGE.streamLink) || '';
     checkTwitchLive();
   } else {
     els.setupView.style.display = 'block';
@@ -202,7 +210,9 @@ async function sendUplink(template) {
 
   els.sendBtn.disabled = true;
   els.sendBtn.textContent = 'Sending…';
+  els.sendBtn.classList.add('sending');
   els.sendLog.textContent = '';
+  showTransmitLoading();
 
   const results = await Promise.allSettled(targets.map(channel => postOne(key, channel, template)));
   const okCount = results.filter(r => r.status === 'fulfilled').length;
@@ -211,13 +221,18 @@ async function sendUplink(template) {
 
   els.sendBtn.disabled = false;
   els.sendBtn.textContent = 'Send Uplink';
+  els.sendBtn.classList.remove('sending');
+  hideTransmitLoading();
+
   if (anyExpired) {
     els.sendLog.textContent = 'Your Buffer key was rejected — likely expired. Generate a new one and reconnect in Settings.';
+    playTransmitFailAnimation();
   } else {
     els.sendLog.textContent = failCount === 0
       ? `Sent to ${okCount} channel${okCount === 1 ? '' : 's'}.`
       : `Sent to ${okCount}, failed on ${failCount}. Check Settings → Connection.`;
     if (okCount > 0) playTransmitAnimation();
+    else playTransmitFailAnimation();
   }
 }
 
@@ -448,6 +463,37 @@ els.saveTwitchBtn.addEventListener('click', () => {
   setTimeout(() => { els.twitchSaveStatus.textContent = ''; }, 2000);
 });
 
+els.saveStreamLinkBtn.addEventListener('click', () => {
+  const link = els.streamLinkInput.value.trim();
+  localStorage.setItem(STORAGE.streamLink, link);
+  els.streamLinkSaveStatus.textContent = link ? 'Saved.' : 'Cleared.';
+  setTimeout(() => { els.streamLinkSaveStatus.textContent = ''; }, 2000);
+});
+
+els.tplInsertLinkBtn.addEventListener('click', () => {
+  const link = localStorage.getItem(STORAGE.streamLink);
+  if (!link) {
+    els.tplInsertLinkStatus.textContent = 'No stream link saved yet — add one in Settings.';
+    return;
+  }
+  const textarea = els.tplCopy;
+  const current = textarea.value;
+  if (current.includes(link)) {
+    els.tplInsertLinkStatus.textContent = 'Link is already in there.';
+    return;
+  }
+  const start = textarea.selectionStart ?? current.length;
+  const end = textarea.selectionEnd ?? current.length;
+  const needsSpaceBefore = start > 0 && !/\s$/.test(current.slice(0, start));
+  const insert = (needsSpaceBefore ? ' ' : '') + link;
+  textarea.value = current.slice(0, start) + insert + current.slice(end);
+  const cursor = start + insert.length;
+  textarea.focus();
+  textarea.setSelectionRange(cursor, cursor);
+  els.tplInsertLinkStatus.textContent = 'Link inserted.';
+  setTimeout(() => { els.tplInsertLinkStatus.textContent = ''; }, 2000);
+});
+
 els.tplTwitchBtn.addEventListener('click', async () => {
   const login = localStorage.getItem(STORAGE.twitchLogin);
   if (!login) {
@@ -515,18 +561,45 @@ els.tplFileInput.addEventListener('change', async () => {
 });
 
 // ---------- transmission animation ----------
+// Three phases:
+//  1. showTransmitLoading()  — pulsing "Transmitting…" rings while we wait on Buffer
+//  2. playTransmitAnimation()      — success: screen flash + ring burst + "On Air" stamp
+//  3. playTransmitFailAnimation()  — failure: red burst + shaking "No Signal" stamp
+function showTransmitLoading() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  els.transmitOverlay.classList.remove('playing', 'fading', 'failing');
+  els.transmitOverlay.classList.add('searching');
+}
+
+function hideTransmitLoading() {
+  els.transmitOverlay.classList.remove('searching');
+}
+
 function playTransmitAnimation() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  els.transmitStamp.textContent = 'On Air';
   els.screenFlash.classList.remove('flash');
   void els.screenFlash.offsetWidth; // restart animation
   els.screenFlash.classList.add('flash');
 
-  els.transmitOverlay.classList.remove('fading');
+  els.transmitOverlay.classList.remove('fading', 'searching', 'failing');
   els.transmitOverlay.classList.add('playing');
   setTimeout(() => els.transmitOverlay.classList.add('fading'), 900);
   setTimeout(() => {
     els.transmitOverlay.classList.remove('playing', 'fading');
   }, 1400);
+}
+
+function playTransmitFailAnimation() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  els.transmitStamp.textContent = 'No Signal';
+  els.transmitOverlay.classList.remove('fading', 'searching', 'playing');
+  els.transmitOverlay.classList.add('failing');
+  setTimeout(() => els.transmitOverlay.classList.add('fading'), 650);
+  setTimeout(() => {
+    els.transmitOverlay.classList.remove('failing', 'fading');
+    els.transmitStamp.textContent = 'On Air'; // reset for next success
+  }, 1150);
 }
 
 
