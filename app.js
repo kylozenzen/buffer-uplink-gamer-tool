@@ -133,41 +133,34 @@ els.connectBtn.addEventListener('click', async () => {
 const BUFFER_ENDPOINT = '/.netlify/functions/buffer-proxy';
 
 async function bufferRequest(key, query, variables) {
+  // The proxy expects the token INSIDE the JSON body, not as a header —
+  // this matches netlify/functions/buffer-proxy.js exactly.
   const res = await fetch(BUFFER_ENDPOINT, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${key}`,
-    },
-    body: JSON.stringify({ query, variables }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: key, query, variables: variables || {} }),
   });
-  if (!res.ok) throw new Error(`Buffer request failed (${res.status})`);
-  const data = await res.json();
-  if (data.errors && data.errors.length) throw new Error(data.errors[0].message);
-  return data.data;
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Buffer request failed (${res.status})`);
+  }
+  if (data.errors && data.errors.length) throw new Error(data.errors[0].message || 'Buffer request failed');
+  return data;
 }
 
 async function fetchChannels(key) {
-  // Placeholder query shape — verify field names against Buffer's
-  // schema before shipping. Mirrors what list_channels / get_account
-  // return: organization id, then channels with id/service/displayName.
+  // Verified against PostIQ's working integration (kylozenzen/post-iq).
   const accountQuery = `query { account { organizations { id name } } }`;
   const accountData = await bufferRequest(key, accountQuery, {});
-  const orgId = accountData?.account?.organizations?.[0]?.id;
+  const orgId = accountData?.data?.account?.organizations?.[0]?.id;
   if (!orgId) throw new Error('No organization found on this token');
   localStorage.setItem(STORAGE.orgId, orgId);
 
-  const channelsQuery = `
-    query Channels($organizationId: ID!) {
-      channels(organizationId: $organizationId) {
-        id
-        service
-        displayName
-        avatar
-      }
-    }`;
+  const channelsQuery = `query C($organizationId: OrganizationId!) { channels(input:{organizationId:$organizationId}){ id displayName name service } }`;
   const channelsData = await bufferRequest(key, channelsQuery, { organizationId: orgId });
-  const channels = channelsData?.channels || [];
+  const channels = channelsData?.data?.channels || [];
   state.channels = channels;
   saveJSON(STORAGE.channels, channels);
   // default: select everything on first connect
@@ -199,21 +192,27 @@ async function sendUplink(template) {
 }
 
 async function postOne(key, channel, template) {
-  // Placeholder mutation — verify shape (mirrors create_post: channelId,
-  // text, mode: shareNow, assets for image) against your working
-  // PostIQ integration before this goes live.
-  const mutation = `
-    mutation SendPost($channelId: ID!, $text: String!, $mode: String!) {
-      createPost(channelId: $channelId, text: $text, mode: $mode, schedulingType: "automatic") {
-        id
-        status
-      }
-    }`;
-  return bufferRequest(key, mutation, {
+  // Verified against PostIQ's working integration (kylozenzen/post-iq).
+  // createPost returns a union type — PostActionSuccess or MutationError —
+  // so both branches have to be checked explicitly.
+  const mutation = `mutation CreatePost($input:CreatePostInput!){createPost(input:$input){__typename ... on PostActionSuccess{post{id dueAt text channelId}} ... on MutationError{message}}}`;
+
+  const input = {
     channelId: channel.id,
     text: template.copy,
+    schedulingType: 'automatic',
     mode: 'shareNow',
-  });
+  };
+  if (template.image) {
+    input.assets = [{ image: { url: template.image } }];
+  }
+
+  const res = await bufferRequest(key, mutation, { input });
+  const result = res?.data?.createPost;
+  if (!result) throw new Error('Empty response from Buffer');
+  if (result.__typename === 'MutationError') throw new Error(result.message || 'Buffer rejected this post');
+  if (result.__typename !== 'PostActionSuccess') throw new Error(result.message || `Unexpected result: ${result.__typename}`);
+  return result;
 }
 
 // ---------- render: channels ----------

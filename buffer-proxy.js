@@ -1,49 +1,132 @@
-// buffer-proxy.js
-//
-// Stateless pass-through. This function exists ONLY to get around
-// browser CORS restrictions on Buffer's API — it does not read,
-// log, store, or persist the Authorization header or the request
-// body anywhere. Every request is forwarded and the response is
-// returned as-is.
-//
-// TODO(Ben): confirm this is actually the endpoint + auth shape
-// your Buffer token works against — swap BUFFER_API_URL and the
-// header format to match what you've already verified in PostIQ.
+// netlify/functions/buffer-proxy.js
+// Stateless pass-through, matching the proven pattern from PostIQ.
+// The token travels in the JSON body (not a header) and is forwarded
+// straight to Buffer as a Bearer token. Nothing is logged or stored.
 
-const BUFFER_API_URL = 'https://api.buffer.com'; // GraphQL endpoint — verify
+function formatProxyError(message, extras = {}) {
+  return { errors: [{ message, ...extras }] };
+}
 
-exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method not allowed' };
+function toIntOrNull(value) {
+  if (value == null) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+exports.handler = async function (event) {
+  const corsHeaders = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: corsHeaders, body: "" };
   }
 
-  const authHeader = event.headers['authorization'] || event.headers['Authorization'];
-  if (!authHeader) {
-    return { statusCode: 401, body: JSON.stringify({ error: 'Missing Authorization header' }) };
+  let payload;
+  try {
+    payload = JSON.parse(event.body || "{}");
+  } catch {
+    return {
+      statusCode: 400,
+      headers: corsHeaders,
+      body: JSON.stringify(formatProxyError("Invalid request body", { code: "BAD_REQUEST", status: 400, retryable: false })),
+    };
+  }
+
+  const { token, query, variables } = payload;
+
+  if (typeof query !== "string" || !query.trim()) {
+    return {
+      statusCode: 400,
+      headers: corsHeaders,
+      body: JSON.stringify(formatProxyError("No query provided", { code: "BAD_REQUEST", status: 400, retryable: false })),
+    };
+  }
+
+  if (!token) {
+    return {
+      statusCode: 401,
+      headers: corsHeaders,
+      body: JSON.stringify(formatProxyError("No Buffer token provided", { code: "MISSING_TOKEN", status: 401, retryable: false })),
+    };
   }
 
   try {
-    const res = await fetch(BUFFER_API_URL, {
-      method: 'POST',
+    const res = await fetchWithTimeout("https://api.buffer.com", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader,
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
       },
-      body: event.body,
+      body: JSON.stringify({ query, variables: variables || {} }),
     });
 
     const text = await res.text();
 
-    return {
-      statusCode: res.status,
-      headers: { 'Content-Type': 'application/json' },
-      body: text,
-    };
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return {
+        statusCode: res.status >= 500 ? res.status : 502,
+        headers: corsHeaders,
+        body: JSON.stringify(
+          formatProxyError(`Buffer returned HTTP ${res.status} with non-JSON body: ${text.slice(0, 300)}`, {
+            code: "BUFFER_NON_JSON",
+            status: res.status,
+            retryable: res.status >= 500,
+          })
+        ),
+      };
+    }
+
+    if (!res.ok) {
+      const msg = data?.errors?.[0]?.message || `Buffer returned HTTP ${res.status}`;
+      let code = "BUFFER_HTTP_ERROR";
+      if (res.status === 401 || res.status === 403) code = "AUTH_ERROR";
+      else if (res.status === 429) code = "RATE_LIMIT";
+      else if (res.status >= 500) code = "BUFFER_SERVER_ERROR";
+
+      return {
+        statusCode: res.status,
+        headers: corsHeaders,
+        body: JSON.stringify(
+          formatProxyError(msg, {
+            code,
+            status: res.status,
+            retryable: res.status === 429 || res.status >= 500,
+            retryAfter: toIntOrNull(res.headers.get("retry-after")),
+          })
+        ),
+      };
+    }
+
+    return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(data) };
   } catch (err) {
-    // Intentionally no logging of request contents — only the error message.
+    const isAbort = err && err.name === "AbortError";
     return {
       statusCode: 502,
-      body: JSON.stringify({ error: 'Could not reach Buffer', detail: err.message }),
+      headers: corsHeaders,
+      body: JSON.stringify(
+        formatProxyError(isAbort ? "Buffer request timed out" : (err.message || "Proxy error"), {
+          code: isAbort ? "PROXY_TIMEOUT" : "PROXY_NETWORK_ERROR",
+          status: 502,
+          retryable: true,
+        })
+      ),
     };
   }
 };
