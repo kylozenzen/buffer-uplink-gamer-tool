@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uplink</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14151a; --panel: #1e2028; --panel-raised: #24262f;
+    --live: #ff4b3e; --live-dim: #7a2b26; --signal: #4fd8e8;
+    --ink: #e8e6de; --ink-muted: #8b8d97; --line: #33353f;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans',sans-serif;
+    min-height:100vh; line-height:1.5;
+  }
+  h1,h2,h3,.display{ font-family:'Big Shoulders Display',sans-serif; font-weight:800; text-transform:uppercase; letter-spacing:0.01em; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+  a{ color:inherit; }
+  button{ font-family:inherit; cursor:pointer; }
+  input, textarea{ font-family:inherit; }
+
+  /* ---------- shell ---------- */
+  .app{ max-width:1040px; margin:0 auto; padding:28px 24px 80px; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; }
+  .logo{ display:flex; align-items:center; gap:10px; font-family:'Big Shoulders Display'; font-weight:800; font-size:22px; text-transform:uppercase; }
+  .logo-dot{ width:10px; height:10px; border-radius:50%; background:var(--live); box-shadow:0 0 10px var(--live); }
+  .tabs{ display:flex; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:4px; }
+  .tab-btn{ background:transparent; border:none; color:var(--ink-muted); font-family:'IBM Plex Mono'; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; padding:9px 16px; border-radius:6px; transition:all .15s; }
+  .tab-btn.active{ background:var(--panel-raised); color:var(--ink); }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:26px; }
+  .card + .card{ margin-top:18px; }
+
+  /* ---------- setup ---------- */
+  .setup-wrap{ max-width:460px; margin:60px auto; text-align:center; }
+  .setup-wrap .eyebrow{ font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:0.15em; color:var(--signal); text-transform:uppercase; margin-bottom:14px; }
+  .setup-wrap h1{ font-size:34px; margin-bottom:14px; }
+  .setup-wrap p{ color:var(--ink-muted); font-size:15px; margin-bottom:28px; }
+  .key-input-row{ display:flex; gap:10px; margin-bottom:14px; }
+  input[type="password"], input[type="text"]{
+    flex:1; background:var(--bg); border:1px solid var(--line); border-radius:6px;
+    padding:13px 14px; color:var(--ink); font-family:'IBM Plex Mono'; font-size:13.5px;
+  }
+  input:focus, textarea:focus{ outline:none; border-color:var(--signal); }
+  .btn{ font-family:'IBM Plex Mono'; font-size:13px; letter-spacing:0.05em; text-transform:uppercase; padding:12px 20px; border-radius:6px; border:1px solid var(--line); background:var(--panel-raised); color:var(--ink); white-space:nowrap; }
+  .btn-primary{ background:var(--live); color:#14151a; border-color:var(--live); font-weight:600; }
+  .btn-primary:hover{ background:#ff6357; }
+  .btn-danger{ background:transparent; border-color:var(--live-dim); color:var(--live); }
+  .btn-block{ width:100%; text-align:center; }
+  .trust-note{ font-family:'IBM Plex Mono'; font-size:11.5px; color:var(--ink-muted); border:1px dashed var(--line); border-radius:6px; padding:12px 14px; text-align:left; }
+  .trust-note strong{ color:var(--signal); }
+
+  /* ---------- console ---------- */
+  .panel-title{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--ink-muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; }
+  .panel-title .link-btn{ color:var(--signal); font-size:11.5px; cursor:pointer; }
+
+  .switch-row{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-bottom:22px; }
+  .switch{ display:flex; align-items:center; justify-content:space-between; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:12px 14px; cursor:pointer; user-select:none; }
+  .switch span.plat{ font-family:'IBM Plex Mono'; font-size:12.5px; }
+  .switch span.plat small{ display:block; color:var(--ink-muted); font-size:10.5px; margin-top:2px; }
+  .toggle{ width:34px; height:18px; border-radius:20px; background:#3a3c46; position:relative; flex-shrink:0; }
+  .toggle::after{ content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#c9cad2; transition:transform .2s, background .2s; }
+  .switch.active .toggle{ background:var(--live-dim); }
+  .switch.active .toggle::after{ transform:translateX(16px); background:var(--live); box-shadow:0 0 8px var(--live); }
+  .switch.active{ border-color:var(--live-dim); }
+  .empty-note{ font-family:'IBM Plex Mono'; font-size:12.5px; color:var(--ink-muted); padding:16px 0; }
+
+  .template-picker{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .chip{ font-family:'IBM Plex Mono'; font-size:12px; padding:8px 14px; border-radius:20px; border:1px solid var(--line); color:var(--ink-muted); }
+  .chip.active{ border-color:var(--signal); color:var(--signal); }
+
+  .template-preview{ background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:16px; font-family:'IBM Plex Mono'; font-size:13px; color:var(--ink); margin-bottom:20px; min-height:60px; white-space:pre-wrap; }
+  .template-preview.empty{ color:var(--ink-muted); }
+
+  .lever-row{ display:flex; align-items:center; gap:16px; }
+  .lever{ flex:1; background:linear-gradient(180deg,#ff5b4e,var(--live) 55%,#c73127); color:#1a0e0c; font-family:'Big Shoulders Display'; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; font-size:16px; padding:16px; border-radius:6px; text-align:center; border:1px solid #ff8577; box-shadow:0 6px 0 #8f221b; transition:transform .08s, box-shadow .08s; }
+  .lever:active{ transform:translateY(4px); box-shadow:0 2px 0 #8f221b; }
+  .lever:disabled{ opacity:0.4; cursor:not-allowed; box-shadow:0 6px 0 #444; }
+  .send-log{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--signal); margin-top:12px; min-height:16px; }
+
+  /* ---------- templates view ---------- */
+  .tpl-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; margin-bottom:20px; }
+  .tpl-card{ background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:18px; position:relative; }
+  .tpl-card .tag{ font-family:'IBM Plex Mono'; font-size:10.5px; color:var(--signal); text-transform:uppercase; letter-spacing:0.08em; }
+  .tpl-card h3{ font-size:18px; text-transform:none; letter-spacing:0; font-family:'IBM Plex Sans'; font-weight:600; margin:8px 0 6px; }
+  .tpl-card p{ font-size:12.5px; color:var(--ink-muted); font-family:'IBM Plex Mono'; line-height:1.6; max-height:60px; overflow:hidden; }
+  .tpl-card-actions{ display:flex; gap:8px; margin-top:14px; }
+  .tpl-card-actions button{ background:none; border:1px solid var(--line); color:var(--ink-muted); font-family:'IBM Plex Mono'; font-size:11px; padding:6px 10px; border-radius:4px; }
+  .tpl-card-actions button:hover{ color:var(--ink); border-color:var(--ink-muted); }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-family:'IBM Plex Mono'; font-size:11.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
+  textarea{ width:100%; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:13px 14px; color:var(--ink); font-size:14px; resize:vertical; min-height:90px; }
+
+  .modal-backdrop{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:20px; }
+  .modal-backdrop.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:28px; max-width:480px; width:100%; }
+  .modal h2{ font-size:22px; margin-bottom:20px; }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:22px; }
+
+  .footer-note{ text-align:center; font-family:'IBM Plex Mono'; font-size:11.5px; color:var(--ink-muted); margin-top:40px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SETUP VIEW -->
+  <div id="setupView" class="setup-wrap">
+    <div class="eyebrow">BYO Buffer key · runs local</div>
+    <h1>Connect Buffer</h1>
+    <p>Drop in your Buffer access token. It's saved in this browser's local storage — never sent anywhere except Buffer itself.</p>
+    <div class="key-input-row">
+      <input type="password" id="keyInput" placeholder="Buffer access token">
+      <button class="btn btn-primary" id="connectBtn">Connect</button>
+    </div>
+    <div id="setupError" class="mono" style="color:var(--live); font-size:12.5px; margin-bottom:14px; display:none;"></div>
+    <div class="trust-note"><strong>Where it lives:</strong> your key is stored in <code>localStorage</code> on this device only. Clear your browser data or hit "Disconnect" in Settings and it's gone. No account, no database, nothing to leak.</div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="mainApp" style="display:none;">
+    <div class="topbar">
+      <div class="logo"><span class="logo-dot"></span>Uplink</div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="console">Console</button>
+        <button class="tab-btn" data-tab="templates">Templates</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+      </div>
+    </div>
+
+    <!-- CONSOLE -->
+    <div class="view active" id="view-console">
+      <div class="card">
+        <div class="panel-title"><span>Channels</span><span class="link-btn" id="refreshChannels">Refresh</span></div>
+        <div id="channelRow" class="switch-row"></div>
+      </div>
+
+      <div class="card">
+        <div class="panel-title"><span>Template</span></div>
+        <div id="templatePicker" class="template-picker"></div>
+        <div id="templatePreview" class="template-preview empty">Pick a template above, or build one in the Templates tab.</div>
+        <div class="lever-row">
+          <button class="lever" id="sendBtn" disabled>Send Uplink</button>
+        </div>
+        <div class="send-log mono" id="sendLog"></div>
+      </div>
+    </div>
+
+    <!-- TEMPLATES -->
+    <div class="view" id="view-templates">
+      <div class="card">
+        <div class="panel-title">
+          <span>Saved templates</span>
+          <span class="link-btn" id="newTemplateBtn">+ New template</span>
+        </div>
+        <div id="tplGrid" class="tpl-grid"></div>
+        <div id="tplEmpty" class="empty-note" style="display:none;">No templates yet — build your first one.</div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div class="card">
+        <div class="panel-title"><span>Connection</span></div>
+        <p class="mono" style="font-size:13px; color:var(--ink-muted); margin-bottom:18px;">Connected with a Buffer access token stored in this browser's local storage.</p>
+        <button class="btn btn-danger" id="disconnectBtn">Disconnect &amp; clear key</button>
+      </div>
+    </div>
+
+    <div class="footer-note">A Nobody Studios product. Trust nobody with your keys — not even us.</div>
+  </div>
+
+</div>
+
+<!-- TEMPLATE EDIT MODAL -->
+<div class="modal-backdrop" id="tplModal">
+  <div class="modal">
+    <h2 id="tplModalTitle">New template</h2>
+    <div class="field">
+      <label>Label</label>
+      <input type="text" id="tplLabel" placeholder="Ranked grind">
+    </div>
+    <div class="field">
+      <label>Post copy</label>
+      <textarea id="tplCopy" placeholder="climbing to Diamond tonight — pull up 🎮"></textarea>
+    </div>
+    <div class="field">
+      <label>Image URL (optional)</label>
+      <input type="text" id="tplImage" placeholder="https://...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="tplCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="tplSaveBtn">Save template</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
