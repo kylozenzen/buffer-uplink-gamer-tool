@@ -1,10 +1,11 @@
 /* ==========================================================
    UPLINK — app logic
-   Storage: everything lives in localStorage. Nothing is sent
-   anywhere except (a) Buffer's API and (b) our own stateless
-   Netlify Function proxy, which exists ONLY to get around
-   browser CORS and does not log or persist the key. See
-   netlify/functions/buffer-proxy.js.
+   Storage: everything lives in localStorage. Requests go
+   straight from the browser to Buffer's GraphQL API
+   (https://api.buffer.com) with the pasted personal access
+   token as a Bearer header — no proxy in the loop. See the
+   note above BUFFER_ENDPOINT for why, and buffer-proxy.js if
+   you need a server-side fallback.
    ========================================================== */
 
 const STORAGE = {
@@ -122,15 +123,17 @@ els.connectBtn.addEventListener('click', async () => {
 });
 
 // ---------- Buffer API layer ----------
-// TODO(Ben): swap this to match the exact request shape you already
-// verified in PostIQ / with Pierre. This currently POSTs to our own
-// Netlify Function proxy (netlify/functions/buffer-proxy.js), which
-// forwards the body + auth header straight to Buffer and returns the
-// response — it does not log or store anything. If your existing
-// integration calls Buffer directly from the browser without a proxy,
-// you can delete the function and point BUFFER_ENDPOINT at Buffer's
-// API directly.
-const BUFFER_ENDPOINT = '/.netlify/functions/buffer-proxy';
+// Buffer's GraphQL API is a single POST endpoint. Confirmed against
+// Buffer's live schema (introspected directly) and developers.buffer.com:
+// one endpoint, Bearer token in the Authorization header, JSON body of
+// { query, variables }. Buffer's own browser-based API Explorer talks to
+// this same endpoint directly from client-side JS with a pasted personal
+// access token, which is the same flow Uplink uses — so this calls Buffer
+// directly with no proxy. buffer-proxy.js is left in the repo as an
+// unused fallback in case a manual CORS check (see chat) turns up
+// otherwise; point BUFFER_ENDPOINT at '/.netlify/functions/buffer-proxy'
+// if you need it.
+const BUFFER_ENDPOINT = 'https://api.buffer.com';
 
 async function bufferRequest(key, query, variables) {
   const res = await fetch(BUFFER_ENDPOINT, {
@@ -148,25 +151,27 @@ async function bufferRequest(key, query, variables) {
 }
 
 async function fetchChannels(key) {
-  // Placeholder query shape — verify field names against Buffer's
-  // schema before shipping. Mirrors what list_channels / get_account
-  // return: organization id, then channels with id/service/displayName.
+  // Verified against Buffer's live GraphQL schema: Query.account returns
+  // organizations(filter: OrganizationFilterInput) — filter is optional,
+  // so an unfiltered call returns all orgs on this token.
   const accountQuery = `query { account { organizations { id name } } }`;
   const accountData = await bufferRequest(key, accountQuery, {});
   const orgId = accountData?.account?.organizations?.[0]?.id;
   if (!orgId) throw new Error('No organization found on this token');
   localStorage.setItem(STORAGE.orgId, orgId);
 
+  // Query.channels takes a single `input: ChannelsInput!` object
+  // (organizationId + optional filter), not a bare organizationId arg.
   const channelsQuery = `
-    query Channels($organizationId: ID!) {
-      channels(organizationId: $organizationId) {
+    query Channels($input: ChannelsInput!) {
+      channels(input: $input) {
         id
         service
         displayName
         avatar
       }
     }`;
-  const channelsData = await bufferRequest(key, channelsQuery, { organizationId: orgId });
+  const channelsData = await bufferRequest(key, channelsQuery, { input: { organizationId: orgId } });
   const channels = channelsData?.channels || [];
   state.channels = channels;
   saveJSON(STORAGE.channels, channels);
@@ -199,21 +204,43 @@ async function sendUplink(template) {
 }
 
 async function postOne(key, channel, template) {
-  // Placeholder mutation — verify shape (mirrors create_post: channelId,
-  // text, mode: shareNow, assets for image) against your working
-  // PostIQ integration before this goes live.
+  // Verified against Buffer's live GraphQL schema:
+  // - createPost takes a single `input: CreatePostInput!` object, not
+  //   flat args. channelId, mode, and schedulingType are required.
+  // - mode: shareNow is a real ShareMode enum value (publish immediately,
+  //   as opposed to addToQueue/shareNext/customScheduled).
+  // - createPost returns a union (PostActionPayload): PostActionSuccess
+  //   on success, or one of several error types that all implement the
+  //   MutationError interface — hence the two inline fragments below
+  //   instead of flat `id`/`status` fields.
+  // - Image assets use `assets: [{ image: { url } }]`; metadata (e.g.
+  //   altText) is optional on ImageAssetInput so it's fine to omit.
   const mutation = `
-    mutation SendPost($channelId: ID!, $text: String!, $mode: String!) {
-      createPost(channelId: $channelId, text: $text, mode: $mode, schedulingType: "automatic") {
-        id
-        status
+    mutation SendPost($input: CreatePostInput!) {
+      createPost(input: $input) {
+        ... on PostActionSuccess {
+          post { id status }
+        }
+        ... on MutationError {
+          message
+        }
       }
     }`;
-  return bufferRequest(key, mutation, {
+
+  const input = {
     channelId: channel.id,
     text: template.copy,
     mode: 'shareNow',
-  });
+    schedulingType: 'automatic',
+  };
+  if (template.image) {
+    input.assets = [{ image: { url: template.image } }];
+  }
+
+  const data = await bufferRequest(key, mutation, { input });
+  const result = data?.createPost;
+  if (result?.message) throw new Error(result.message);
+  return result;
 }
 
 // ---------- render: channels ----------
