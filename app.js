@@ -1,11 +1,10 @@
 /* ==========================================================
    UPLINK — app logic
    Storage: everything lives in localStorage. Requests go
-   straight from the browser to Buffer's GraphQL API
-   (https://api.buffer.com) with the pasted personal access
-   token as a Bearer header — no proxy in the loop. See the
-   note above BUFFER_ENDPOINT for why, and buffer-proxy.js if
-   you need a server-side fallback.
+   through our own Netlify Function proxy
+   (netlify/functions/buffer-proxy.js), which forwards the
+   body + auth header straight to Buffer's GraphQL API and
+   returns the response — it does not log or persist the key.
    ========================================================== */
 
 const STORAGE = {
@@ -123,17 +122,13 @@ els.connectBtn.addEventListener('click', async () => {
 });
 
 // ---------- Buffer API layer ----------
-// Buffer's GraphQL API is a single POST endpoint. Confirmed against
-// Buffer's live schema (introspected directly) and developers.buffer.com:
-// one endpoint, Bearer token in the Authorization header, JSON body of
-// { query, variables }. Buffer's own browser-based API Explorer talks to
-// this same endpoint directly from client-side JS with a pasted personal
-// access token, which is the same flow Uplink uses — so this calls Buffer
-// directly with no proxy. buffer-proxy.js is left in the repo as an
-// unused fallback in case a manual CORS check (see chat) turns up
-// otherwise; point BUFFER_ENDPOINT at '/.netlify/functions/buffer-proxy'
-// if you need it.
-const BUFFER_ENDPOINT = 'https://api.buffer.com';
+// Buffer's GraphQL API is a single POST endpoint (https://api.buffer.com),
+// confirmed against Buffer's live schema and developers.buffer.com: Bearer
+// token in the Authorization header, JSON body of { query, variables }.
+// Routed through our Netlify proxy rather than called directly, since
+// Buffer's CORS policy on that endpoint isn't documented and couldn't be
+// confirmed. See netlify/functions/buffer-proxy.js.
+const BUFFER_ENDPOINT = '/.netlify/functions/buffer-proxy';
 
 async function bufferRequest(key, query, variables) {
   const res = await fetch(BUFFER_ENDPOINT, {
