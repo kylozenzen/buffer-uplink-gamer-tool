@@ -14,6 +14,7 @@ const STORAGE = {
   templates: 'uplink_templates',
   selectedChannels: 'uplink_selected_channels',
   activeTemplate: 'uplink_active_template',
+  twitchLogin: 'uplink_twitch_login',
 };
 
 const els = {
@@ -39,6 +40,18 @@ const els = {
   tplSaveBtn: document.getElementById('tplSaveBtn'),
   tplCancelBtn: document.getElementById('tplCancelBtn'),
   disconnectBtn: document.getElementById('disconnectBtn'),
+  twitchLoginInput: document.getElementById('twitchLoginInput'),
+  saveTwitchBtn: document.getElementById('saveTwitchBtn'),
+  twitchSaveStatus: document.getElementById('twitchSaveStatus'),
+  twitchLiveBadge: document.getElementById('twitchLiveBadge'),
+  tplImagePreview: document.getElementById('tplImagePreview'),
+  tplFileInput: document.getElementById('tplFileInput'),
+  tplUploadBtn: document.getElementById('tplUploadBtn'),
+  tplTwitchBtn: document.getElementById('tplTwitchBtn'),
+  tplRemoveImageBtn: document.getElementById('tplRemoveImageBtn'),
+  tplImageStatus: document.getElementById('tplImageStatus'),
+  transmitOverlay: document.getElementById('transmitOverlay'),
+  screenFlash: document.getElementById('screenFlash'),
 };
 
 let state = {
@@ -75,6 +88,8 @@ function boot() {
     renderTemplatePicker();
     renderTemplatesTab();
     if (state.channels.length === 0) fetchChannels(key);
+    els.twitchLoginInput.value = localStorage.getItem(STORAGE.twitchLogin) || '';
+    checkTwitchLive();
   } else {
     els.setupView.style.display = 'block';
     els.mainApp.style.display = 'none';
@@ -114,7 +129,9 @@ els.connectBtn.addEventListener('click', async () => {
     renderTemplatesTab();
   } catch (err) {
     localStorage.removeItem(STORAGE.key);
-    els.setupError.textContent = 'Could not reach Buffer with that key: ' + err.message;
+    els.setupError.textContent = isExpiredKeyError(err)
+      ? 'That key was rejected by Buffer — it may be expired or mistyped. Generate a fresh one in Buffer under Settings → API.'
+      : 'Could not reach Buffer with that key: ' + err.message;
     els.setupError.style.display = 'block';
   } finally {
     els.connectBtn.textContent = 'Connect';
@@ -144,10 +161,17 @@ async function bufferRequest(key, query, variables) {
   try {
     data = await res.json();
   } catch {
-    throw new Error(`Buffer request failed (${res.status})`);
+    throw Object.assign(new Error(`Buffer request failed (${res.status})`), { code: 'PROXY_BAD_RESPONSE' });
   }
-  if (data.errors && data.errors.length) throw new Error(data.errors[0].message || 'Buffer request failed');
+  if (data.errors && data.errors.length) {
+    const first = data.errors[0] || {};
+    throw Object.assign(new Error(first.message || 'Buffer request failed'), { code: first.code });
+  }
   return data;
+}
+
+function isExpiredKeyError(err) {
+  return err?.code === 'AUTH_ERROR' || /unauthorized|invalid|expired|forbidden/i.test(String(err?.message || ''));
 }
 
 async function fetchChannels(key) {
@@ -183,12 +207,18 @@ async function sendUplink(template) {
   const results = await Promise.allSettled(targets.map(channel => postOne(key, channel, template)));
   const okCount = results.filter(r => r.status === 'fulfilled').length;
   const failCount = results.length - okCount;
+  const anyExpired = results.some(r => r.status === 'rejected' && isExpiredKeyError(r.reason));
 
   els.sendBtn.disabled = false;
   els.sendBtn.textContent = 'Send Uplink';
-  els.sendLog.textContent = failCount === 0
-    ? `Sent to ${okCount} channel${okCount === 1 ? '' : 's'}.`
-    : `Sent to ${okCount}, failed on ${failCount}. Check Settings → Connection.`;
+  if (anyExpired) {
+    els.sendLog.textContent = 'Your Buffer key was rejected — likely expired. Generate a new one and reconnect in Settings.';
+  } else {
+    els.sendLog.textContent = failCount === 0
+      ? `Sent to ${okCount} channel${okCount === 1 ? '' : 's'}.`
+      : `Sent to ${okCount}, failed on ${failCount}. Check Settings → Connection.`;
+    if (okCount > 0) playTransmitAnimation();
+  }
 }
 
 async function postOne(key, channel, template) {
@@ -249,7 +279,9 @@ els.refreshChannels.addEventListener('click', async () => {
   try {
     await fetchChannels(key);
   } catch (err) {
-    els.sendLog.textContent = 'Refresh failed: ' + err.message;
+    els.sendLog.textContent = isExpiredKeyError(err)
+      ? 'Your Buffer key was rejected — likely expired. Generate a new one in Buffer and reconnect in Settings.'
+      : 'Refresh failed: ' + err.message;
   }
   els.refreshChannels.textContent = 'Refresh';
 });
@@ -282,8 +314,20 @@ function renderPreview(template) {
     els.templatePreview.textContent = 'Pick a template above, or build one in the Templates tab.';
     els.templatePreview.classList.add('empty');
   } else {
-    els.templatePreview.textContent = template.copy + (template.image ? `\n[image attached]` : '');
+    els.templatePreview.innerHTML = '';
     els.templatePreview.classList.remove('empty');
+    if (template.image) {
+      const thumb = document.createElement('div');
+      thumb.style.cssText = `width:44px;height:44px;border-radius:4px;background:url("${template.image}") center/cover;flex-shrink:0;margin-right:12px;`;
+      els.templatePreview.style.display = 'flex';
+      els.templatePreview.style.alignItems = 'center';
+      els.templatePreview.appendChild(thumb);
+    } else {
+      els.templatePreview.style.display = 'block';
+    }
+    const textSpan = document.createElement('span');
+    textSpan.textContent = template.copy;
+    els.templatePreview.appendChild(textSpan);
   }
   updateSendButtonState();
 }
@@ -343,7 +387,8 @@ function openTemplateModal(id) {
   els.tplModalTitle.textContent = id ? 'Edit template' : 'New template';
   els.tplLabel.value = t ? t.label : '';
   els.tplCopy.value = t ? t.copy : '';
-  els.tplImage.value = t ? t.image : '';
+  setTemplateImage(t ? t.image : '');
+  els.tplImageStatus.textContent = '';
   els.tplModal.classList.add('show');
 }
 
@@ -372,7 +417,119 @@ els.tplSaveBtn.addEventListener('click', () => {
   renderTemplatePicker();
 });
 
-// ---------- tabs ----------
+// ---------- Twitch integration ----------
+// Uses our own registered Twitch app (client credentials, configured
+// server-side in twitch-proxy.js) — no OAuth needed from the streamer.
+async function checkTwitchLive() {
+  const login = localStorage.getItem(STORAGE.twitchLogin);
+  if (!login) return null;
+  try {
+    const res = await fetch(`/.netlify/functions/twitch-proxy?login=${encodeURIComponent(login)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Twitch lookup failed');
+    if (data.live) {
+      els.twitchLiveBadge.textContent = `● Live now on Twitch — ${data.viewerCount} watching · ${data.game || 'no category set'}`;
+    } else {
+      els.twitchLiveBadge.textContent = '';
+    }
+    return data;
+  } catch (err) {
+    els.twitchLiveBadge.textContent = '';
+    return null;
+  }
+}
+
+els.saveTwitchBtn.addEventListener('click', () => {
+  const login = els.twitchLoginInput.value.trim().replace(/^@/, '');
+  if (!login) return;
+  localStorage.setItem(STORAGE.twitchLogin, login);
+  els.twitchSaveStatus.textContent = 'Saved.';
+  checkTwitchLive();
+  setTimeout(() => { els.twitchSaveStatus.textContent = ''; }, 2000);
+});
+
+els.tplTwitchBtn.addEventListener('click', async () => {
+  const login = localStorage.getItem(STORAGE.twitchLogin);
+  if (!login) {
+    els.tplImageStatus.textContent = 'Add your Twitch username in Settings first.';
+    return;
+  }
+  els.tplImageStatus.textContent = 'Checking Twitch…';
+  const data = await checkTwitchLive();
+  if (!data) {
+    els.tplImageStatus.textContent = 'Could not reach Twitch.';
+    return;
+  }
+  if (!data.live) {
+    els.tplImageStatus.textContent = `${login} isn't live right now — go live, then pull the thumbnail.`;
+    return;
+  }
+  setTemplateImage(data.thumbnailUrl);
+  els.tplImageStatus.textContent = 'Pulled your current live thumbnail.';
+});
+
+// ---------- photo upload ----------
+function setTemplateImage(url) {
+  els.tplImage.value = url || '';
+  if (url) {
+    els.tplImagePreview.classList.remove('empty');
+    els.tplImagePreview.style.backgroundImage = `url("${url}")`;
+    els.tplImagePreview.textContent = '';
+    els.tplRemoveImageBtn.style.display = 'inline-block';
+  } else {
+    els.tplImagePreview.classList.add('empty');
+    els.tplImagePreview.style.backgroundImage = '';
+    els.tplImagePreview.textContent = 'No photo';
+    els.tplRemoveImageBtn.style.display = 'none';
+  }
+}
+
+els.tplUploadBtn.addEventListener('click', () => els.tplFileInput.click());
+els.tplRemoveImageBtn.addEventListener('click', () => setTemplateImage(''));
+
+els.tplFileInput.addEventListener('change', async () => {
+  const file = els.tplFileInput.files?.[0];
+  if (!file) return;
+  els.tplImageStatus.textContent = 'Uploading…';
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const res = await fetch('/.netlify/functions/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl, filename: file.name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    setTemplateImage(data.url);
+    els.tplImageStatus.textContent = 'Photo uploaded.';
+  } catch (err) {
+    els.tplImageStatus.textContent = 'Upload failed: ' + err.message;
+  } finally {
+    els.tplFileInput.value = '';
+  }
+});
+
+// ---------- transmission animation ----------
+function playTransmitAnimation() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  els.screenFlash.classList.remove('flash');
+  void els.screenFlash.offsetWidth; // restart animation
+  els.screenFlash.classList.add('flash');
+
+  els.transmitOverlay.classList.remove('fading');
+  els.transmitOverlay.classList.add('playing');
+  setTimeout(() => els.transmitOverlay.classList.add('fading'), 900);
+  setTimeout(() => {
+    els.transmitOverlay.classList.remove('playing', 'fading');
+  }, 1400);
+}
+
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
