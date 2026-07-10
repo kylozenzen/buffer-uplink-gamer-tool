@@ -15,13 +15,22 @@ const STORAGE = {
   history: 'uplink_transmission_history',
   sound: 'uplink_sound_enabled',
   confirm: 'uplink_confirm_enabled',
+  manualDraft: 'uplink_manual_draft',
+  composeMode: 'uplink_compose_mode',
+  onboarding: 'uplink_onboarding_complete',
+  postUrlField: 'uplink_post_url_field',
 };
 
 const BUFFER_ENDPOINT = '/.netlify/functions/buffer-proxy';
 
 const $ = (id) => document.getElementById(id);
 const els = {
+  landingView: $('landingView'),
   setupView: $('setupView'),
+  openSetupBtn: $('openSetupBtn'),
+  heroSetupBtn: $('heroSetupBtn'),
+  finalSetupBtn: $('finalSetupBtn'),
+  closeSetupBtn: $('closeSetupBtn'),
   mainApp: $('mainApp'),
   keyInput: $('keyInput'),
   connectBtn: $('connectBtn'),
@@ -44,6 +53,11 @@ const els = {
   duplicateActiveBtn: $('duplicateActiveBtn'),
   newFromConsoleBtn: $('newFromConsoleBtn'),
   jumpToTemplatesBtn: $('jumpToTemplatesBtn'),
+  loadoutComposer: $('loadoutComposer'),
+  manualComposer: $('manualComposer'),
+  manualCompose: $('manualCompose'),
+  manualCharCount: $('manualCharCount'),
+  clearManualBtn: $('clearManualBtn'),
 
   sendBtn: $('sendBtn'),
   sendBtnMain: $('sendBtnMain'),
@@ -75,6 +89,8 @@ const els = {
   saveStreamLinkBtn: $('saveStreamLinkBtn'),
   streamLinkSaveStatus: $('streamLinkSaveStatus'),
   disconnectBtn: $('disconnectBtn'),
+  replayTourBtn: $('replayTourBtn'),
+  helpTourBtn: $('helpTourBtn'),
   soundToggle: $('soundToggle'),
   confirmToggle: $('confirmToggle'),
 
@@ -113,7 +129,21 @@ const els = {
   transmitOverlay: $('transmitOverlay'),
   transmitStamp: $('transmitStamp'),
   transmitLoadingLabel: $('transmitLoadingLabel'),
+  transmitStampDetail: $('transmitStampDetail'),
+  hudStatus: $('hudStatus'),
+  hudTargets: $('hudTargets'),
+  hudResult: $('hudResult'),
   screenFlash: $('screenFlash'),
+
+  tourBackdrop: $('tourBackdrop'),
+  tourSpotlight: $('tourSpotlight'),
+  tourStep: $('tourStep'),
+  tourTitle: $('tourTitle'),
+  tourCopy: $('tourCopy'),
+  tourDots: $('tourDots'),
+  tourSkipBtn: $('tourSkipBtn'),
+  tourBackBtn: $('tourBackBtn'),
+  tourNextBtn: $('tourNextBtn'),
 };
 
 const state = {
@@ -125,6 +155,11 @@ const state = {
   liveData: null,
   history: [],
   sending: false,
+  composeMode: 'loadout',
+  manualDraft: '',
+  postUrlField: undefined,
+  tourIndex: 0,
+  tourActive: false,
 };
 
 function loadJSON(key, fallback) {
@@ -191,8 +226,7 @@ function normalizeTemplates(templates) {
 function boot() {
   const key = localStorage.getItem(STORAGE.key);
   if (!key) {
-    els.setupView.style.display = 'grid';
-    els.mainApp.style.display = 'none';
+    showLanding();
     return;
   }
 
@@ -202,6 +236,10 @@ function boot() {
   state.selectedChannelIds = new Set(loadJSON(STORAGE.selectedChannels, []));
   state.activeTemplateId = localStorage.getItem(STORAGE.activeTemplate) || state.templates[0]?.id || null;
   state.history = loadJSON(STORAGE.history, []);
+  state.composeMode = localStorage.getItem(STORAGE.composeMode) === 'manual' ? 'manual' : 'loadout';
+  state.manualDraft = localStorage.getItem(STORAGE.manualDraft) || '';
+  const cachedUrlField = localStorage.getItem(STORAGE.postUrlField);
+  state.postUrlField = cachedUrlField === null ? undefined : cachedUrlField;
 
   if (!state.templates.some((template) => template.id === state.activeTemplateId)) {
     state.activeTemplateId = state.templates[0]?.id || null;
@@ -212,12 +250,14 @@ function boot() {
 
   els.twitchLoginInput.value = localStorage.getItem(STORAGE.twitchLogin) || '';
   els.streamLinkInput.value = localStorage.getItem(STORAGE.streamLink) || '';
+  els.manualCompose.value = state.manualDraft;
 
   showApp();
   syncSettingToggles();
   renderAll();
   renderTwitchState(null);
   checkTwitchLive();
+  maybeStartOnboarding();
 
   if (!state.channels.length) {
     fetchChannels(key).catch((error) => {
@@ -226,20 +266,47 @@ function boot() {
   }
 }
 
+function showLanding() {
+  els.landingView.style.display = 'block';
+  els.setupView.style.display = 'none';
+  els.mainApp.style.display = 'none';
+}
+
+function openSetup() {
+  els.setupView.style.display = 'grid';
+  document.body.style.overflow = 'hidden';
+  window.setTimeout(() => els.keyInput.focus(), 60);
+}
+
+function closeSetup() {
+  els.setupView.style.display = 'none';
+  document.body.style.overflow = '';
+  els.setupError.style.display = 'none';
+}
+
 function showApp() {
+  els.landingView.style.display = 'none';
   els.setupView.style.display = 'none';
   els.mainApp.style.display = 'block';
+  document.body.style.overflow = '';
 }
 
 function renderAll() {
   renderChannels();
   renderTemplatePicker();
+  renderComposeMode();
   renderTemplatesTab();
   renderHistory();
   updateReadyHud();
 }
 
 /* ---------- connection ---------- */
+
+[els.openSetupBtn, els.heroSetupBtn, els.finalSetupBtn].filter(Boolean).forEach((button) => button.addEventListener('click', openSetup));
+els.closeSetupBtn.addEventListener('click', closeSetup);
+els.setupView.addEventListener('click', (event) => {
+  if (event.target === els.setupView) closeSetup();
+});
 
 els.revealKeyBtn.addEventListener('click', () => {
   const showing = els.keyInput.type === 'text';
@@ -278,6 +345,7 @@ els.connectBtn.addEventListener('click', async () => {
     renderTwitchState(null);
     checkTwitchLive();
     playTone('ready');
+    window.setTimeout(() => startTour(0), 550);
   } catch (error) {
     localStorage.removeItem(STORAGE.key);
     showSetupError(readableError(error, 'Could not connect to Buffer.'));
@@ -337,7 +405,7 @@ async function fetchChannels(key) {
   if (!orgId) throw new Error('No Buffer organization was found for this token.');
   localStorage.setItem(STORAGE.orgId, orgId);
 
-  const channelsQuery = `query C($organizationId: OrganizationId!) { channels(input:{organizationId:$organizationId}){ id displayName name service } }`;
+  const channelsQuery = `query C($organizationId: OrganizationId!) { channels(input:{organizationId:$organizationId}){ id displayName name service externalLink } }`;
   const channelsData = await bufferRequest(key, channelsQuery, { organizationId: orgId });
   state.channels = channelsData?.data?.channels || [];
   saveJSON(STORAGE.channels, state.channels);
@@ -433,6 +501,75 @@ function activeTemplate() {
   return state.templates.find((template) => template.id === state.activeTemplateId) || null;
 }
 
+function manualSignal() {
+  const copy = String(state.manualDraft || '').trim();
+  if (!copy) return null;
+  return { id: 'manual-compose', label: 'Quick compose', type: 'Manual', copy, image: '' };
+}
+
+function currentSignal() {
+  return state.composeMode === 'manual' ? manualSignal() : activeTemplate();
+}
+
+function setComposeMode(mode, options = {}) {
+  state.composeMode = mode === 'manual' ? 'manual' : 'loadout';
+  localStorage.setItem(STORAGE.composeMode, state.composeMode);
+  renderComposeMode();
+  updateReadyHud();
+  if (!options.silent) playTone('tick');
+}
+
+function renderComposeMode() {
+  document.querySelectorAll('[data-compose-mode]').forEach((button) => {
+    const active = button.dataset.composeMode === state.composeMode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  els.loadoutComposer.classList.toggle('active', state.composeMode === 'loadout');
+  els.manualComposer.classList.toggle('active', state.composeMode === 'manual');
+  els.manualCompose.value = state.manualDraft;
+  els.manualCharCount.textContent = `${resolveTemplateCopy(manualSignal()).length} chars`;
+  const template = activeTemplate();
+  els.quickEditBtn.disabled = state.composeMode !== 'loadout' || !template;
+  els.duplicateActiveBtn.disabled = state.composeMode !== 'loadout' || !template;
+}
+
+document.querySelectorAll('[data-compose-mode]').forEach((button) => {
+  button.addEventListener('click', () => setComposeMode(button.dataset.composeMode));
+});
+
+els.manualCompose.addEventListener('input', () => {
+  state.manualDraft = els.manualCompose.value;
+  localStorage.setItem(STORAGE.manualDraft, state.manualDraft);
+  els.manualCharCount.textContent = `${resolveTemplateCopy(manualSignal()).length} chars`;
+  updateReadyHud();
+});
+
+els.clearManualBtn.addEventListener('click', () => {
+  state.manualDraft = '';
+  els.manualCompose.value = '';
+  localStorage.removeItem(STORAGE.manualDraft);
+  els.manualCharCount.textContent = '0 chars';
+  updateReadyHud();
+  els.manualCompose.focus();
+});
+
+document.querySelectorAll('.manual-token-btn').forEach((button) => {
+  button.addEventListener('click', () => {
+    const token = button.dataset.token || '';
+    const start = els.manualCompose.selectionStart ?? els.manualCompose.value.length;
+    const end = els.manualCompose.selectionEnd ?? start;
+    const before = els.manualCompose.value.slice(0, start);
+    const after = els.manualCompose.value.slice(end);
+    const spacer = before && !/\s$/.test(before) ? ' ' : '';
+    els.manualCompose.value = `${before}${spacer}${token}${after}`;
+    const caret = before.length + spacer.length + token.length;
+    els.manualCompose.setSelectionRange(caret, caret);
+    els.manualCompose.dispatchEvent(new Event('input'));
+    els.manualCompose.focus();
+  });
+});
+
 function resolveTemplateCopy(template, liveData = state.liveData) {
   if (!template) return '';
   const login = localStorage.getItem(STORAGE.twitchLogin) || '';
@@ -489,6 +626,7 @@ function renderTemplatePicker() {
 
 function selectTemplate(id, options = {}) {
   if (!state.templates.some((template) => template.id === id)) return;
+  setComposeMode('loadout', { silent: true });
   state.activeTemplateId = id;
   localStorage.setItem(STORAGE.activeTemplate, id);
   renderTemplatePicker();
@@ -534,8 +672,8 @@ function renderPreview(template) {
   copy.append(labelRow, text);
   els.templatePreview.append(media, copy);
 
-  els.quickEditBtn.disabled = !template;
-  els.duplicateActiveBtn.disabled = !template;
+  els.quickEditBtn.disabled = state.composeMode !== 'loadout' || !template;
+  els.duplicateActiveBtn.disabled = state.composeMode !== 'loadout' || !template;
 }
 
 function renderTemplatesTab() {
@@ -1160,44 +1298,46 @@ els.tplBrowsePostsBtn.addEventListener('click', async () => {
 /* ---------- pre-flight + sending ---------- */
 
 function updateReadyHud() {
-  const template = activeTemplate();
+  const signal = currentSignal();
   const targetCount = state.selectedChannelIds.size;
   const hasChannels = targetCount > 0;
-  const hasTemplate = Boolean(template);
-  const resolvedCopy = resolveTemplateCopy(template);
-  const readyCount = Number(hasChannels) + Number(hasTemplate);
+  const resolvedCopy = resolveTemplateCopy(signal);
+  const hasSignal = Boolean(signal && resolvedCopy);
+  const readyCount = Number(hasChannels) + Number(hasSignal);
 
   els.selectedCount.textContent = `${targetCount} channel${targetCount === 1 ? '' : 's'}`;
   els.channelReadyStat.classList.toggle('ready', hasChannels);
-  els.templateStatus.textContent = template?.label || 'None selected';
-  els.templateReadyStat.classList.toggle('ready', hasTemplate);
-  els.mediaStatus.textContent = template?.image ? 'Visual armed' : 'Text only';
-  els.mediaReadyStat.classList.toggle('ready', Boolean(template?.image));
+  els.templateStatus.textContent = state.composeMode === 'manual'
+    ? (hasSignal ? 'Quick compose' : 'Draft empty')
+    : (signal?.label || 'None selected');
+  els.templateReadyStat.classList.toggle('ready', hasSignal);
+  els.mediaStatus.textContent = signal?.image ? 'Visual armed' : 'Text only';
+  els.mediaReadyStat.classList.toggle('ready', Boolean(signal?.image));
   els.charCount.textContent = `${resolvedCopy.length} chars`;
 
   els.preflightText.textContent = `${readyCount} / 2 ready`;
   els.preflightFill.style.width = `${readyCount * 50}%`;
-  els.sendBtn.disabled = !(hasChannels && hasTemplate) || state.sending;
+  els.sendBtn.disabled = !(hasChannels && hasSignal) || state.sending;
 
   if (state.sending) {
     els.sendBtnMain.textContent = 'Routing Signal';
     els.sendBtnSub.textContent = `Sending to ${targetCount} target${targetCount === 1 ? '' : 's'}`;
-  } else if (!hasChannels && !hasTemplate) {
+  } else if (!hasChannels && !hasSignal) {
     els.sendBtnMain.textContent = 'Transmit Uplink';
-    els.sendBtnSub.textContent = 'Choose channels + loadout';
+    els.sendBtnSub.textContent = state.composeMode === 'manual' ? 'Choose channels + write post' : 'Choose channels + loadout';
   } else if (!hasChannels) {
     els.sendBtnMain.textContent = 'Arm Channels';
     els.sendBtnSub.textContent = 'Select at least one target';
-  } else if (!hasTemplate) {
-    els.sendBtnMain.textContent = 'Load Signal';
-    els.sendBtnSub.textContent = 'Select a saved loadout';
+  } else if (!hasSignal) {
+    els.sendBtnMain.textContent = state.composeMode === 'manual' ? 'Write Signal' : 'Load Signal';
+    els.sendBtnSub.textContent = state.composeMode === 'manual' ? 'Compose a post above' : 'Select a saved loadout';
   } else {
     els.sendBtnMain.textContent = 'Transmit Uplink';
     els.sendBtnSub.textContent = `${targetCount} target${targetCount === 1 ? '' : 's'} armed`;
   }
 }
 
-els.sendBtn.addEventListener('click', () => sendUplink(activeTemplate()));
+els.sendBtn.addEventListener('click', () => sendUplink(currentSignal()));
 
 async function sendUplink(template) {
   if (state.sending || !template) return;
@@ -1226,6 +1366,7 @@ async function sendUplink(template) {
     const renderedTemplate = { ...template, copy: resolveTemplateCopy(template) };
     if (!renderedTemplate.copy) throw new Error('This loadout resolves to empty copy. Add text or configure its dynamic tokens.');
 
+    await discoverPostUrlField(key);
     const results = await Promise.allSettled(targets.map((channel) => postOne(key, channel, renderedTemplate)));
     const okCount = results.filter((result) => result.status === 'fulfilled').length;
     const failures = results.filter((result) => result.status === 'rejected');
@@ -1241,7 +1382,7 @@ async function sendUplink(template) {
       els.sendLog.textContent = failCount
         ? `Signal reached ${okCount} channel${okCount === 1 ? '' : 's'}; ${failCount} failed: ${firstError?.message || 'unknown error'}.`
         : `Signal live on ${okCount} channel${okCount === 1 ? '' : 's'}. Queue cleared. Go play.`;
-      playTransmitAnimation();
+      playTransmitAnimation(okCount, targets.length);
       playTone('success');
       if (navigator.vibrate) navigator.vibrate([35, 35, 65]);
     } else {
@@ -1250,13 +1391,28 @@ async function sendUplink(template) {
       playTone('fail');
     }
 
-    addHistoryEntry({
+    const posts = results.map((result, index) => {
+      if (result.status !== 'fulfilled') return null;
+      const channel = targets[index];
+      return {
+        channel: channel.displayName || channel.name || channel.service || 'Channel',
+        service: channel.service || '',
+        url: result.value?.url || '',
+        channelUrl: channel.externalLink || '',
+        postId: result.value?.postId || '',
+      };
+    }).filter(Boolean);
+
+    const historyEntry = addHistoryEntry({
       template: template.label,
+      preview: renderedTemplate.copy.slice(0, 140),
       success: okCount,
       failed: failCount,
       targetCount: targets.length,
       channels: targets.map((channel) => channel.displayName || channel.service),
+      posts,
     });
+    if (posts.some((post) => post.postId && !post.url)) hydrateHistoryLinks(key, historyEntry.id);
   } catch (error) {
     els.sendLog.textContent = `Transmission failed: ${error.message || 'unknown error'}.`;
     playTransmitFailAnimation();
@@ -1270,8 +1426,23 @@ async function sendUplink(template) {
   }
 }
 
-async function postOne(key, channel, template) {
-  const mutation = `mutation CreatePost($input:CreatePostInput!){createPost(input:$input){__typename ... on PostActionSuccess{post{id dueAt text channelId}} ... on MutationError{message}}}`;
+async function discoverPostUrlField(key) {
+  if (state.postUrlField !== undefined) return state.postUrlField;
+  try {
+    const data = await bufferRequest(key, `query { __type(name: "Post") { fields { name } } }`, {});
+    const fields = (data?.data?.__type?.fields || []).map((field) => field.name);
+    const candidates = ['externalLink', 'permalink', 'externalUrl', 'socialUrl', 'url', 'link'];
+    state.postUrlField = candidates.find((candidate) => fields.includes(candidate)) || '';
+  } catch {
+    state.postUrlField = '';
+  }
+  localStorage.setItem(STORAGE.postUrlField, state.postUrlField);
+  return state.postUrlField;
+}
+
+async function postOne(key, channel, template, allowUrlRetry = true) {
+  const urlSelection = state.postUrlField ? ` ${state.postUrlField}` : '';
+  const mutation = `mutation CreatePost($input:CreatePostInput!){createPost(input:$input){__typename ... on PostActionSuccess{post{id dueAt text channelId${urlSelection}}} ... on MutationError{message}}}`;
   const input = {
     channelId: channel.id,
     text: template.copy,
@@ -1280,21 +1451,64 @@ async function postOne(key, channel, template) {
   };
   if (template.image) input.assets = [{ image: { url: template.image } }];
 
-  const response = await bufferRequest(key, mutation, { input });
-  const result = response?.data?.createPost;
-  if (!result) throw new Error('Buffer returned an empty post response.');
-  if (result.__typename === 'MutationError') throw new Error(result.message || 'Buffer rejected this post.');
-  if (result.__typename !== 'PostActionSuccess') throw new Error(result.message || `Unexpected Buffer result: ${result.__typename}`);
-  return result;
+  try {
+    const response = await bufferRequest(key, mutation, { input });
+    const result = response?.data?.createPost;
+    if (!result) throw new Error('Buffer returned an empty post response.');
+    if (result.__typename === 'MutationError') throw new Error(result.message || 'Buffer rejected this post.');
+    if (result.__typename !== 'PostActionSuccess') throw new Error(result.message || `Unexpected Buffer result: ${result.__typename}`);
+    const post = result.post || {};
+    const directUrl = state.postUrlField && typeof post[state.postUrlField] === 'string' ? post[state.postUrlField] : '';
+    return { ...result, postId: post.id || '', url: directUrl };
+  } catch (error) {
+    if (allowUrlRetry && state.postUrlField && /cannot query field|unknown field|selection/i.test(String(error.message || ''))) {
+      state.postUrlField = '';
+      localStorage.setItem(STORAGE.postUrlField, '');
+      return postOne(key, channel, template, false);
+    }
+    throw error;
+  }
 }
 
 /* ---------- local history ---------- */
 
 function addHistoryEntry(entry) {
-  state.history.unshift({ id: randomId(), timestamp: Date.now(), ...entry });
+  const record = { id: randomId(), timestamp: Date.now(), ...entry };
+  state.history.unshift(record);
   state.history = state.history.slice(0, 12);
   saveJSON(STORAGE.history, state.history);
   renderHistory();
+  return record;
+}
+
+async function hydrateHistoryLinks(key, entryId) {
+  const delays = [1200, 2200, 3600];
+  for (const delay of delays) {
+    await new Promise((resolve) => window.setTimeout(resolve, delay));
+    const entry = state.history.find((item) => item.id === entryId);
+    if (!entry || !Array.isArray(entry.posts)) return;
+    const unresolved = entry.posts.filter((post) => post.postId && !post.url);
+    if (!unresolved.length) return;
+
+    let changed = false;
+    await Promise.all(unresolved.map(async (post) => {
+      try {
+        const data = await bufferRequest(key, `query GetPost($input: PostInput!) { post(input: $input) { id externalLink } }`, { input: { id: post.postId } });
+        const url = data?.data?.post?.externalLink;
+        if (typeof url === 'string' && url) {
+          post.url = url;
+          changed = true;
+        }
+      } catch {
+        // Publishing can take a moment. The next polling pass will retry.
+      }
+    }));
+
+    if (changed) {
+      saveJSON(STORAGE.history, state.history);
+      renderHistory();
+    }
+  }
 }
 
 function renderHistory() {
@@ -1316,7 +1530,8 @@ function renderHistory() {
     const copy = document.createElement('div');
     copy.className = 'history-copy';
     const title = document.createElement('strong');
-    title.textContent = entry.template || 'Unnamed loadout';
+    title.textContent = entry.template || 'Unnamed signal';
+    if (entry.preview) title.title = entry.preview;
     const meta = document.createElement('span');
     meta.textContent = `${formatRelativeTime(entry.timestamp)} · ${entry.targetCount || 0} target${entry.targetCount === 1 ? '' : 's'}`;
     copy.append(title, meta);
@@ -1326,6 +1541,28 @@ function renderHistory() {
     result.textContent = failed ? 'Failed' : `${entry.success} live`;
 
     item.append(icon, copy, result);
+
+    const successfulPosts = Array.isArray(entry.posts) ? entry.posts : [];
+    if (successfulPosts.length) {
+      const links = document.createElement('div');
+      links.className = 'history-links';
+      successfulPosts.forEach((post) => {
+        const anchor = document.createElement('a');
+        anchor.className = 'history-link';
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.href = post.url || post.channelUrl || 'https://publish.buffer.com/';
+        anchor.textContent = post.url
+          ? `Open ${post.service || post.channel} post`
+          : (post.channelUrl ? `Open ${post.service || post.channel}` : `Review in Buffer`);
+        anchor.title = post.url
+          ? `Open the live post on ${post.channel}`
+          : (post.channelUrl ? `Open ${post.channel} while Uplink waits for the post permalink.` : 'Buffer did not return a direct social permalink; open Buffer to review the published post.');
+        links.appendChild(anchor);
+      });
+      item.appendChild(links);
+    }
+
     els.historyList.appendChild(item);
   });
 }
@@ -1379,10 +1616,98 @@ els.confirmToggle.addEventListener('click', () => {
   playTone('tick');
 });
 
+els.replayTourBtn.addEventListener('click', () => startTour(0));
+els.helpTourBtn.addEventListener('click', () => startTour(0));
+
 els.disconnectBtn.addEventListener('click', () => {
   if (!window.confirm('Disconnect Buffer and wipe all Uplink data stored in this browser?')) return;
   Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
   window.location.reload();
+});
+
+/* ---------- guided onboarding ---------- */
+
+const TOUR_STEPS = [
+  { title: 'Welcome to the launch deck', copy: 'Uplink has two jobs: make your pre-stream announcement fast, and keep every publishing decision visible before you press the big red button.', tab: 'console', selector: '[data-tour="stream"]' },
+  { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens.', tab: 'settings', selector: '[data-tour="systems"]' },
+  { title: 'Arm the target channels', copy: 'Back on the Launch Deck, choose exactly which connected Buffer channels receive this post. Nothing fires at a channel unless its switch is armed.', tab: 'console', selector: '[data-tour="channels"]' },
+  { title: 'Choose how to write', copy: 'Saved Loadout repeats a proven announcement. Quick Compose gives you a clean field for a one-off post. Both support live Twitch tokens.', tab: 'console', selector: '[data-tour="signal"]' },
+  { title: 'Run the pre-flight check', copy: 'The launch control stays locked until at least one channel and one complete signal are ready. Command or Control + Enter also transmits.', tab: 'console', selector: '[data-tour="transmit"]' },
+  { title: 'Jump back into the conversation', copy: 'Recent transmissions keep direct social permalinks when Buffer exposes them. Open a post from here and start interacting while the stream warms up.', tab: 'console', selector: '[data-tour="history"]' },
+];
+
+function maybeStartOnboarding() {
+  if (localStorage.getItem(STORAGE.onboarding) === 'true') return;
+  window.setTimeout(() => startTour(0), 700);
+}
+
+function startTour(index = 0) {
+  if (!localStorage.getItem(STORAGE.key)) return;
+  closeTemplateModal();
+  state.tourActive = true;
+  state.tourIndex = Math.max(0, Math.min(index, TOUR_STEPS.length - 1));
+  els.tourBackdrop.classList.add('show');
+  els.tourBackdrop.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  renderTourStep();
+}
+
+function renderTourStep() {
+  const step = TOUR_STEPS[state.tourIndex];
+  switchTab(step.tab);
+  els.tourStep.textContent = `Step ${state.tourIndex + 1} of ${TOUR_STEPS.length}`;
+  els.tourTitle.textContent = step.title;
+  els.tourCopy.textContent = step.copy;
+  els.tourBackBtn.disabled = state.tourIndex === 0;
+  els.tourNextBtn.textContent = state.tourIndex === TOUR_STEPS.length - 1 ? 'Finish' : 'Next';
+  els.tourDots.innerHTML = TOUR_STEPS.map((_, index) => `<i class="${index === state.tourIndex ? 'active' : ''}"></i>`).join('');
+
+  document.querySelectorAll('.tour-target-pulse').forEach((element) => element.classList.remove('tour-target-pulse'));
+  window.setTimeout(() => {
+    const target = document.querySelector(step.selector);
+    if (!target) {
+      els.tourSpotlight.classList.remove('active');
+      return;
+    }
+    target.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    target.classList.add('tour-target-pulse');
+    window.setTimeout(() => positionTourSpotlight(target), 300);
+  }, 80);
+}
+
+function positionTourSpotlight(target) {
+  if (!state.tourActive || !target) return;
+  const rect = target.getBoundingClientRect();
+  const pad = 8;
+  els.tourSpotlight.style.left = `${Math.max(8, rect.left - pad)}px`;
+  els.tourSpotlight.style.top = `${Math.max(8, rect.top - pad)}px`;
+  els.tourSpotlight.style.width = `${Math.min(window.innerWidth - 16, rect.width + pad * 2)}px`;
+  els.tourSpotlight.style.height = `${Math.min(window.innerHeight - 16, rect.height + pad * 2)}px`;
+  els.tourSpotlight.classList.add('active');
+}
+
+function finishTour(completed = true) {
+  state.tourActive = false;
+  els.tourBackdrop.classList.remove('show');
+  els.tourBackdrop.setAttribute('aria-hidden', 'true');
+  els.tourSpotlight.classList.remove('active');
+  document.querySelectorAll('.tour-target-pulse').forEach((element) => element.classList.remove('tour-target-pulse'));
+  document.body.style.overflow = '';
+  if (completed) localStorage.setItem(STORAGE.onboarding, 'true');
+  switchTab('console');
+}
+
+els.tourSkipBtn.addEventListener('click', () => finishTour(true));
+els.tourBackBtn.addEventListener('click', () => {
+  if (state.tourIndex > 0) { state.tourIndex -= 1; renderTourStep(); }
+});
+els.tourNextBtn.addEventListener('click', () => {
+  if (state.tourIndex >= TOUR_STEPS.length - 1) finishTour(true);
+  else { state.tourIndex += 1; renderTourStep(); }
+});
+window.addEventListener('resize', () => {
+  if (!state.tourActive) return;
+  positionTourSpotlight(document.querySelector(TOUR_STEPS[state.tourIndex].selector));
 });
 
 /* ---------- navigation + shortcuts ---------- */
@@ -1400,6 +1725,11 @@ function switchTab(tab) {
 document.addEventListener('keydown', (event) => {
   const tag = document.activeElement?.tagName?.toLowerCase();
   const typing = ['input', 'textarea', 'select'].includes(tag) || document.activeElement?.isContentEditable;
+
+  if (event.key === 'Escape' && state.tourActive) {
+    finishTour(true);
+    return;
+  }
 
   if (event.key === 'Escape' && els.tplModal.classList.contains('show')) {
     closeTemplateModal();
@@ -1454,6 +1784,11 @@ function scheduleTone(frequency, delay, duration, gainAmount) {
 }
 
 function showTransmitLoading() {
+  const targetCount = state.selectedChannelIds.size;
+  els.hudStatus.textContent = 'BUFFER ROUTE ACTIVE';
+  els.hudTargets.textContent = `${targetCount} TARGET${targetCount === 1 ? '' : 'S'}`;
+  els.hudResult.textContent = 'AWAITING ACK';
+  els.transmitStampDetail.textContent = 'Securing route';
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   els.transmitOverlay.classList.remove('playing', 'fading', 'failing');
   els.transmitOverlay.classList.add('searching');
@@ -1463,27 +1798,36 @@ function hideTransmitLoading() {
   els.transmitOverlay.classList.remove('searching');
 }
 
-function playTransmitAnimation() {
+function playTransmitAnimation(successCount = 1, targetCount = successCount) {
+  els.transmitStamp.innerHTML = `Signal Live<small id="transmitStampDetail">${successCount} of ${targetCount} post${targetCount === 1 ? '' : 's'} deployed</small>`;
+  els.transmitStampDetail = $('transmitStampDetail');
+  els.hudStatus.textContent = 'SOCIAL POST DEPLOYED';
+  els.hudTargets.textContent = `${successCount}/${targetCount} ACKNOWLEDGED`;
+  els.hudResult.textContent = 'OPEN COMMS';
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  els.transmitStamp.textContent = 'Signal Live';
   els.screenFlash.classList.remove('flash');
   void els.screenFlash.offsetWidth;
   els.screenFlash.classList.add('flash');
   els.transmitOverlay.classList.remove('fading', 'searching', 'failing');
   els.transmitOverlay.classList.add('playing');
-  window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 900);
-  window.setTimeout(() => els.transmitOverlay.classList.remove('playing', 'fading'), 1350);
+  window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 1050);
+  window.setTimeout(() => els.transmitOverlay.classList.remove('playing', 'fading'), 1380);
 }
 
 function playTransmitFailAnimation() {
+  els.transmitStamp.innerHTML = 'Signal Lost<small id="transmitStampDetail">Route rejected</small>';
+  els.transmitStampDetail = $('transmitStampDetail');
+  els.hudStatus.textContent = 'TRANSMISSION ERROR';
+  els.hudTargets.textContent = 'NO ACKNOWLEDGEMENT';
+  els.hudResult.textContent = 'CHECK BUFFER';
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  els.transmitStamp.textContent = 'Signal Lost';
   els.transmitOverlay.classList.remove('fading', 'searching', 'playing');
   els.transmitOverlay.classList.add('failing');
-  window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 650);
+  window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 760);
   window.setTimeout(() => {
     els.transmitOverlay.classList.remove('failing', 'fading');
-    els.transmitStamp.textContent = 'Signal Live';
+    els.transmitStamp.innerHTML = 'Signal Live<small id="transmitStampDetail">Post deployed</small>';
+    els.transmitStampDetail = $('transmitStampDetail');
   }, 1100);
 }
 

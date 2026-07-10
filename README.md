@@ -1,27 +1,71 @@
-# Uplink — Streamer Broadcast Deck
+# Uplink — Streamer Broadcast Deck v3
 
-Uplink is a local-first launch console for streamers. It connects to Buffer, lets a creator arm multiple social channels, loads a reusable announcement, resolves live Twitch data, and publishes the signal immediately.
+Uplink is a local-first launch console for streamers. It connects to Buffer, lets a creator arm multiple social channels, pulls optional live Twitch context, and publishes either a reusable announcement or a one-off post from one focused deck.
 
-## What changed in this overhaul
+## What is new in v3
 
-- Rebuilt the UI as a responsive broadcast deck instead of a generic scheduler.
-- Added a live Twitch intelligence panel with game, title, viewer count, uptime, thumbnail, and signal state.
-- Added dynamic template tokens:
+### First-run landing and credential safety
+
+- Added a full public-facing landing page before the Buffer connection screen.
+- Added high-resolution CSS previews of the actual launch-deck workflow.
+- Reframed the Buffer API key in language streamers already understand: treat it like a stream key.
+- Added clear guidance to never show the token on stream, paste it into chat, include it in screenshots, or leave it in public code.
+- Kept the connection flow explicit: the token is stored in this browser and sent through the included stateless Netlify proxy when Uplink calls Buffer.
+
+### Guided onboarding
+
+- Added a six-step first-run tour that walks through:
+  1. The live intelligence panel.
+  2. Twitch and stream-link setup.
+  3. Buffer channel targeting.
+  4. Saved Loadouts versus Quick Compose.
+  5. The pre-flight and transmit controls.
+  6. Recent post links and engagement.
+- The walkthrough automatically runs after the first successful connection.
+- It can be replayed from the `?` button or the Systems tab.
+- Tour completion is stored locally.
+
+### Quick Compose
+
+- Added a manual composer directly to the Launch Deck.
+- Creators can switch between a reusable Loadout and a one-off post without leaving the page.
+- Quick Compose supports `{{game}}`, `{{title}}`, and `{{link}}` tokens.
+- Draft copy is saved locally so it survives an accidental refresh.
+- The existing pre-flight, keyboard shortcut, and multi-channel send logic works for both modes.
+
+### Clickable recent posts
+
+- New transmissions store the Buffer post ID and destination details locally.
+- Uplink requests Buffer's `externalLink` field for the published social post.
+- When a permalink is not available immediately, Uplink polls the post briefly and updates the local history when the link appears.
+- Each recent transmission exposes direct “Open [network] post” buttons when available.
+- A channel link or Buffer review link is used as a graceful fallback.
+
+### Sharper transmission sequence
+
+- Added a full-screen tactical HUD above the existing rings and flash.
+- The routing state now shows target count, acknowledgement status, scan lines, a targeting reticle, and a deployment result.
+- The success state reports how many posts were deployed.
+- The failure state switches the HUD to a rejected-route treatment.
+- Reduced-motion preferences still disable the full animation treatment.
+
+## Existing v2 systems preserved
+
+- Responsive streamer-focused command-center UI.
+- Live Twitch game, title, viewer count, uptime, and thumbnail.
+- Dynamic Loadout tokens:
   - `{{game}}`
   - `{{title}}`
   - `{{viewers}}`
   - `{{link}}`
-- Added a two-step pre-flight HUD for channel and loadout readiness.
-- Upgraded templates into categorized **Loadouts** with create, edit, use, duplicate, and delete actions.
-- Added local transmission history with success and failure states.
-- Added keyboard controls:
-  - `1–9` selects a loadout.
+- Loadout creation, editing, duplication, deletion, and visual assets.
+- Multi-channel Buffer publishing.
+- Image uploads through Netlify Blobs.
+- Optional launch confirmation, generated signal sounds, and supported-device haptics.
+- Keyboard controls:
+  - `1–9` selects a Loadout.
   - `Ctrl/Command + Enter` transmits.
-  - `Escape` closes the loadout editor.
-- Added optional in-browser signal sounds, haptic feedback where supported, and a launch confirmation setting.
-- Added a dedicated mobile layout with bottom navigation and touch-friendly controls.
-- Preserved Buffer publishing, image uploads, Twitch lookup, Netlify Blobs, and previous-template compatibility.
-- Improved token disclosure language so the setup screen accurately explains the stateless Buffer proxy.
+  - `Escape` closes the Loadout editor or guided tour.
 
 ## Project structure
 
@@ -37,6 +81,12 @@ netlify/
     image.js
     twitch-proxy.js
     upload-image.js
+qa/
+  landing-desktop-v3.png
+  landing-mobile-v3.png
+  launch-deck-desktop-v3.png
+  launch-deck-mobile-v3.png
+  transmission-overlay-v3.png
 ```
 
 ## Deploy to Netlify
@@ -47,17 +97,29 @@ netlify/
    - `TWITCH_CLIENT_ID`
    - `TWITCH_CLIENT_SECRET`
 4. Deploy the site.
-5. Open Uplink and enter a valid Buffer access token in the setup screen.
+5. Open Uplink, review the credential-safety notes, and enter a valid Buffer API key.
 
-The Buffer token is stored in the user’s browser local storage. Requests pass through the included stateless Netlify function and are forwarded to Buffer as a bearer token. The function does not intentionally log or persist the token.
+## Security notes
 
-## Notes
-
-- Uploaded visuals are limited to PNG, JPEG, WebP, or GIF files up to 8 MB.
-- Uploaded media is stored in the `uplink-images` Netlify Blobs store and served through the included image function.
-- The “Past Buffer posts” visual browser introspects the available Buffer `Post` schema. It falls back to a clear empty state when media fields are not exposed.
-- Existing Uplink templates remain compatible; older templates are automatically categorized as `Custom`.
+- The Buffer key is saved in the browser's local storage.
+- Requests pass through the included Netlify function and are forwarded to Buffer as a bearer token.
+- The included function does not intentionally log or persist the token.
+- Anyone deploying Uplink should inspect the function source and control the Netlify project receiving requests.
+- If a key is ever exposed on stream, in public code, or in a screenshot, revoke it and create a new one.
 
 ## QA completed
 
-The rebuilt interface was checked with automated browser interaction at desktop and mobile sizes. The test covered channel selection, live Twitch rendering, loadout creation, duplication, keyboard selection, modal behavior, Buffer send success, local history, tab navigation, and responsive rendering.
+The v3 build was checked in a browser harness at desktop and mobile viewport sizes. The verification covered:
+
+- Landing-page rendering.
+- Connection-modal behavior.
+- First-run tour navigation across tabs.
+- Loadout and Quick Compose switching.
+- Manual-draft persistence logic.
+- Pre-flight readiness.
+- Multi-channel mocked Buffer publishing.
+- Direct social permalink rendering through `externalLink`.
+- Local transmission history.
+- Full-screen success animation.
+- Desktop and mobile responsive layouts.
+- JavaScript syntax and DOM ID/reference consistency.
