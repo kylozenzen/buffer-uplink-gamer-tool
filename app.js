@@ -19,6 +19,7 @@ const STORAGE = {
   composeMode: 'uplink_compose_mode',
   onboarding: 'uplink_onboarding_complete',
   postUrlField: 'uplink_post_url_field',
+  seenLanding: 'uplink_seen_landing',
 };
 
 const BUFFER_ENDPOINT = '/.netlify/functions/buffer-proxy';
@@ -89,6 +90,7 @@ const els = {
   saveStreamLinkBtn: $('saveStreamLinkBtn'),
   streamLinkSaveStatus: $('streamLinkSaveStatus'),
   disconnectBtn: $('disconnectBtn'),
+  viewLandingBtn: $('viewLandingBtn'),
   replayTourBtn: $('replayTourBtn'),
   helpTourBtn: $('helpTourBtn'),
   soundToggle: $('soundToggle'),
@@ -227,6 +229,7 @@ function boot() {
   const key = localStorage.getItem(STORAGE.key);
   if (!key) {
     showLanding();
+    if (localStorage.getItem(STORAGE.seenLanding) === 'true') openSetup();
     return;
   }
 
@@ -261,7 +264,7 @@ function boot() {
 
   if (!state.channels.length) {
     fetchChannels(key).catch((error) => {
-      els.sendLog.textContent = readableError(error, 'Could not load Buffer channels.');
+      els.sendLog.textContent = readableError(error, 'Could not load your social channels.');
     });
   }
 }
@@ -273,6 +276,7 @@ function showLanding() {
 }
 
 function openSetup() {
+  localStorage.setItem(STORAGE.seenLanding, 'true');
   els.setupView.style.display = 'grid';
   document.body.style.overflow = 'hidden';
   window.setTimeout(() => els.keyInput.focus(), 60);
@@ -285,6 +289,7 @@ function closeSetup() {
 }
 
 function showApp() {
+  localStorage.setItem(STORAGE.seenLanding, 'true');
   els.landingView.style.display = 'none';
   els.setupView.style.display = 'none';
   els.mainApp.style.display = 'block';
@@ -302,7 +307,11 @@ function renderAll() {
 
 /* ---------- connection ---------- */
 
-[els.openSetupBtn, els.heroSetupBtn, els.finalSetupBtn].filter(Boolean).forEach((button) => button.addEventListener('click', openSetup));
+[els.openSetupBtn, els.heroSetupBtn, els.finalSetupBtn].filter(Boolean).forEach((button) => button.addEventListener('click', () => {
+  if (localStorage.getItem(STORAGE.key)) showApp();
+  else openSetup();
+}));
+if (els.viewLandingBtn) els.viewLandingBtn.addEventListener('click', showLanding);
 els.closeSetupBtn.addEventListener('click', closeSetup);
 els.setupView.addEventListener('click', (event) => {
   if (event.target === els.setupView) closeSetup();
@@ -447,7 +456,7 @@ function renderChannels() {
   els.channelRow.innerHTML = '';
 
   if (!state.channels.length) {
-    els.channelRow.innerHTML = '<div class="empty-note">No Buffer channels detected yet. Refresh the network after connecting accounts in Buffer.</div>';
+    els.channelRow.innerHTML = '<div class="empty-note">No social channels detected yet. Refresh the network after connecting accounts in Buffer.</div>';
     return;
   }
 
@@ -467,7 +476,7 @@ function renderChannels() {
     const name = document.createElement('strong');
     name.textContent = channel.displayName || channel.name || channel.service || 'Channel';
     const service = document.createElement('span');
-    service.textContent = channel.service || 'Buffer channel';
+    service.textContent = channel.service || 'Social channel';
     copy.append(name, service);
 
     const toggle = document.createElement('span');
@@ -1630,7 +1639,7 @@ els.disconnectBtn.addEventListener('click', () => {
 const TOUR_STEPS = [
   { title: 'Welcome to the launch deck', copy: 'Uplink has two jobs: make your pre-stream announcement fast, and keep every publishing decision visible before you press the big red button.', tab: 'console', selector: '[data-tour="stream"]' },
   { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens.', tab: 'settings', selector: '[data-tour="systems"]' },
-  { title: 'Arm the target channels', copy: 'Back on the Launch Deck, choose exactly which connected Buffer channels receive this post. Nothing fires at a channel unless its switch is armed.', tab: 'console', selector: '[data-tour="channels"]' },
+  { title: 'Arm the target channels', copy: 'Back on the Launch Deck, choose exactly which connected social channels receive this post. Nothing fires at a channel unless its switch is armed.', tab: 'console', selector: '[data-tour="channels"]' },
   { title: 'Choose how to write', copy: 'Saved Loadout repeats a proven announcement. Quick Compose gives you a clean field for a one-off post. Both support live Twitch tokens.', tab: 'console', selector: '[data-tour="signal"]' },
   { title: 'Run the pre-flight check', copy: 'The launch control stays locked until at least one channel and one complete signal are ready. Command or Control + Enter also transmits.', tab: 'console', selector: '[data-tour="transmit"]' },
   { title: 'Jump back into the conversation', copy: 'Recent transmissions keep direct social permalinks when Buffer exposes them. Open a post from here and start interacting while the stream warms up.', tab: 'console', selector: '[data-tour="history"]' },
