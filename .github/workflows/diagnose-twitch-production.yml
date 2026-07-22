@@ -1,0 +1,37 @@
+name: Diagnose Twitch production
+
+on:
+  push:
+    branches:
+      - agent/diagnose-twitch-production
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check production site
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo '=== Site headers ==='
+          curl --fail-with-body --silent --show-error --location --dump-header - \
+            --output /dev/null \
+            https://projectuplink.netlify.app/ || true
+
+          for login in twitch kylozenzen; do
+            echo
+            echo "=== Twitch proxy: ${login} ==="
+            response_file="response-${login}.json"
+            status=$(curl --silent --show-error --location \
+              --header 'Accept: application/json' \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              "https://projectuplink.netlify.app/.netlify/functions/twitch-proxy?login=${login}&diagnostic=$(date +%s)")
+            echo "HTTP ${status}"
+            cat "$response_file"
+            echo
+          done
