@@ -135,6 +135,10 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .hero-cta-row{display:flex;gap:11px;flex-wrap:wrap;margin-top:28px}
 .hero-note{display:flex;gap:9px;align-items:flex-start;margin-top:18px;color:var(--muted);font:500 10px/1.55 'JetBrains Mono',monospace;max-width:540px}
 .hero-note::before{content:'LOCK';color:var(--signal);border:1px solid rgba(116,246,212,.35);padding:4px 6px;border-radius:5px;font-size:8px;line-height:1;flex:0 0 auto;margin-top:1px}
+.hero-signup{margin-top:16px;color:var(--muted);font:600 11px/1.5 'JetBrains Mono',monospace}
+.hero-signup a,.key-signup-note a{color:var(--signal);text-decoration:none;border-bottom:1px solid rgba(116,246,212,.35)}
+.hero-signup a:hover,.key-signup-note a:hover{border-bottom-color:var(--signal)}
+.key-signup-note{margin-top:12px;color:var(--muted);font:600 11px/1.5 'JetBrains Mono',monospace}
 .landing-deck{position:relative;min-height:590px;border:1px solid #40536c;border-radius:24px;background:linear-gradient(145deg,#111a27,#080d15);box-shadow:0 45px 120px rgba(0,0,0,.55),0 0 70px rgba(53,200,255,.08);padding:16px;transform:perspective(1200px) rotateY(-4deg) rotateX(2deg)}
 .landing-deck::before{content:'';position:absolute;inset:0;border-radius:24px;background:linear-gradient(120deg,rgba(255,255,255,.05),transparent 22%);pointer-events:none}
 .demo-top{height:52px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:12px;padding:0 14px;background:#0a1019}
@@ -373,8 +377,9 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
       <div class="landing-copy">
         <div class="eyebrow">Built for the thirty seconds before “go live”</div>
         <h1>One button.<span>Every signal.</span></h1>
-        <p>Uplink turns your Buffer channels, Twitch stream data, reusable announcements, and spur-of-the-moment posts into one focused launch deck.</p>
+        <p>Uplink turns your social media channels, Twitch stream data, reusable announcements, and spur-of-the-moment posts into one focused launch deck.</p>
         <div class="hero-cta-row"><button class="btn btn-primary" id="heroSetupBtn">Initialize your deck</button><a class="btn" href="#how-it-works" style="text-decoration:none">See the workflow</a></div>
+        <div class="hero-signup">Uplink publishes through Buffer — the tool that actually posts to your social channels. <a href="https://join.buffer.com/ben-campbell" target="_blank" rel="noopener">New to Buffer? Start free →</a></div>
         <div class="hero-note">Your Buffer access token is a creator credential. Treat it exactly like your stream key: never paste it into a tool you do not trust, never show it on stream, and rotate it if it is exposed.</div>
       </div>
       <div class="landing-deck" aria-label="High-resolution preview of the Uplink launch deck">
@@ -393,12 +398,12 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
       </div>
     </section>
 
-    <section class="landing-strip"><div class="landing-strip-inner"><div class="strip-item"><strong>One action</strong>Publish to every armed Buffer channel.</div><div class="strip-item"><strong>Live-aware</strong>Pull Twitch game, title, viewers, and thumbnail.</div><div class="strip-item"><strong>Local-first</strong>No Uplink account or creator database.</div></div></section>
+    <section class="landing-strip"><div class="landing-strip-inner"><div class="strip-item"><strong>One action</strong>Publish to every armed social channel.</div><div class="strip-item"><strong>Live-aware</strong>Pull Twitch game, title, viewers, and thumbnail.</div><div class="strip-item"><strong>Local-first</strong>No Uplink account or creator database.</div></div></section>
 
     <section class="landing-section" id="how-it-works">
       <div class="landing-section-head"><div class="eyebrow">The pre-stream ritual, compressed</div><h2>Less tab juggling. More actually going live.</h2><p>Use a saved loadout when the announcement is routine. Use Quick Compose when tonight’s stream has developed lore.</p></div>
       <div class="feature-grid">
-        <article class="feature-card"><div class="feature-number">01 // ARM</div><h3>Choose your channels</h3><p>Pull your connected Buffer channels into a single target grid and decide exactly where this signal goes.</p></article>
+        <article class="feature-card"><div class="feature-number">01 // ARM</div><h3>Choose your channels</h3><p>Pull your connected social channels into a single target grid and decide exactly where this signal goes.</p></article>
         <article class="feature-card"><div class="feature-number">02 // LOAD</div><h3>Loadout or quick post</h3><p>Launch a reusable live-aware template or write a one-off post without leaving the deck.</p></article>
         <article class="feature-card"><div class="feature-number">03 // DEPLOY</div><h3>Publish and engage</h3><p>Fire the post, then jump directly into supported live social posts from the transmission history.</p></article>
       </div>
@@ -411,7 +416,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 
     <section class="landing-section landing-final"><div class="eyebrow">Ready check</div><h2>Build the announcement deck your stream deserves.</h2><p>Connect Buffer, take the guided setup tour, and turn your next “going live” post into one move.</p><div class="hero-cta-row" style="justify-content:center"><button class="btn btn-primary" id="finalSetupBtn">Launch Uplink</button></div></section>
   </main>
-  <footer class="landing-footer"><span>A Nobody Creative experiment</span><span>Your keys stay local. Your signal goes everywhere else.</span></footer>
+  <footer class="landing-footer"><span>A Nobody Creative experiment</span><span>Publishing powered by Buffer</span><span>Your keys stay local. Your signal goes everywhere else.</span></footer>
 </div>
 
 <!-- CONNECTION MODAL -->
@@ -427,6 +432,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
       <div class="eyebrow">Initialize connection</div><h2>Connect Buffer</h2>
       <p>Uplink stores your access token in this browser and sends it only when making a Buffer request through the included stateless Netlify function.</p>
       <div class="key-input-row"><div class="key-input-wrap"><label class="sr-only" for="keyInput">Buffer access token</label><input type="password" id="keyInput" placeholder="Paste Buffer access token" autocomplete="off"><button class="reveal-key" id="revealKeyBtn" type="button" aria-label="Show token">Show</button></div><button class="btn btn-primary" id="connectBtn">Initialize</button></div>
+      <div class="key-signup-note">No Buffer account yet? <a href="https://join.buffer.com/ben-campbell" target="_blank" rel="noopener">Create one to get your access token →</a></div>
       <div id="setupError" class="setup-error"></div>
       <div class="trust-note"><strong>Before connecting:</strong> inspect or deploy your own copy, keep the key out of screenshots, and revoke it immediately if it is ever exposed. Disconnecting wipes Uplink’s local data from this browser.</div>
     </div>
@@ -456,8 +462,8 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
     <!-- LAUNCH DECK -->
     <section class="view active" id="view-console">
       <div class="page-heading">
-        <div><div class="eyebrow">Mission control // ready check</div><h1>Turn “I’m live” into one move.</h1></div>
-        <p>Choose the channels. Load the signal. Send it before the opening cutscene ends.</p>
+        <div><div class="eyebrow">Mission control</div><h1>Launch Deck</h1></div>
+        <p>Select target channels, load or compose a signal, then transmit.</p>
       </div>
 
       <div class="console-grid">
@@ -594,7 +600,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
         <section class="panel panel-pad settings-card">
           <div class="panel-head"><div class="panel-kicker">Buffer connection</div></div>
           <p>Your token is stored in this browser’s local storage and sent only when Uplink makes a Buffer request through its stateless proxy.</p>
-          <button class="btn" id="replayTourBtn" style="margin-right:8px">Run guided setup</button><button class="btn btn-danger" id="disconnectBtn">Disconnect + wipe local data</button>
+          <button class="btn" id="replayTourBtn" style="margin-right:8px">Run guided setup</button><button class="btn" id="viewLandingBtn" style="margin-right:8px">View welcome page</button><button class="btn btn-danger" id="disconnectBtn">Disconnect + wipe local data</button>
         </section>
       </div>
     </section>
