@@ -1,0 +1,58 @@
+/* UPLINK V4 // Native Signals
+   Layered additions for platform variants, launch modes, and mission reports. */
+
+.v4-signal-tools{margin-top:18px;border-top:1px solid var(--line);padding-top:18px;position:relative;z-index:1}
+.v4-tools-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.v4-tools-copy{display:flex;flex-direction:column;gap:5px}
+.v4-tools-copy strong{font:700 12px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em}
+.v4-tools-copy span{color:var(--muted);font-size:12px}
+.v4-variant-toggle{display:inline-flex;align-items:center;gap:8px}
+.v4-variant-count{display:inline-grid;place-items:center;min-width:25px;height:25px;padding:0 7px;border:1px solid rgba(116,246,212,.35);border-radius:999px;color:var(--signal);font:700 9px/1 'JetBrains Mono',monospace}
+.v4-variant-panel{display:none;margin-top:14px;gap:10px}
+.v4-variant-panel.show{display:grid}
+.v4-variant-empty{padding:14px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font:500 11px/1.55 'JetBrains Mono',monospace}
+.v4-variant-card{border:1px solid var(--line);border-radius:12px;background:#0a1019;overflow:hidden}
+.v4-variant-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.v4-platform{display:flex;align-items:center;gap:9px;font:700 10px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em}
+.v4-platform-dot{width:7px;height:7px;border-radius:50%;background:var(--signal-2);box-shadow:0 0 10px rgba(53,200,255,.4)}
+.v4-variant-meta{display:flex;align-items:center;gap:9px;color:var(--muted);font:600 9px/1 'JetBrains Mono',monospace;text-transform:uppercase}
+.v4-variant-state.custom{color:var(--signal)}
+.v4-reset-variant{border:0;background:none;color:var(--signal-2);font:700 9px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;padding:4px}
+.v4-reset-variant:hover{color:var(--ink)}
+.v4-variant-card textarea{min-height:86px;border:0;border-radius:0;background:transparent;font-size:12px;box-shadow:none!important}
+.v4-variant-foot{padding:8px 12px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:var(--muted);font:500 9px/1.4 'JetBrains Mono',monospace}
+
+.v4-launch-control{margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,12,19,.74)}
+.v4-launch-label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;color:var(--muted);font:700 9px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.1em}
+.v4-launch-label strong{color:var(--signal);font-size:9px}
+.v4-launch-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.v4-mode-btn{border:1px solid var(--line);background:#0a1019;color:var(--muted);border-radius:8px;padding:8px 5px;font:700 9px/1.15 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.04em;transition:.15s ease}
+.v4-mode-btn:hover{color:var(--ink);border-color:var(--line-hot)}
+.v4-mode-btn.active{color:#05100e;background:var(--signal);border-color:var(--signal);box-shadow:0 0 16px rgba(116,246,212,.12)}
+.v4-schedule-wrap{display:none;margin-top:9px}
+.v4-schedule-wrap.show{display:block}
+.v4-schedule-wrap input{font-size:11px;padding:10px 11px}
+.v4-mode-note{margin-top:8px;color:var(--muted);font:500 9px/1.45 'JetBrains Mono',monospace}
+.v4-mode-note.error{color:var(--live)}
+
+.v4-mission-panel{margin-top:0}
+.v4-mission-empty{color:var(--muted);font:500 11px/1.55 'JetBrains Mono',monospace}
+.v4-mission-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.v4-mission-title strong{display:block;font-size:15px}
+.v4-mission-title span{display:block;margin-top:4px;color:var(--muted);font:500 9px/1.45 'JetBrains Mono',monospace}
+.v4-mission-badge{flex:0 0 auto;border:1px solid rgba(116,246,212,.3);border-radius:999px;padding:6px 8px;color:var(--signal);font:700 8px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em}
+.v4-metrics-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:13px}
+.v4-metric{padding:10px;border:1px solid var(--line);border-radius:10px;background:#0a1019}
+.v4-metric span{display:block;color:var(--muted);font:600 8px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.07em}
+.v4-metric strong{display:block;margin-top:6px;font:700 20px/1 'Rajdhani',sans-serif;color:var(--ink)}
+.v4-mission-actions{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap}
+.v4-mission-status{margin-top:9px;min-height:14px;color:var(--muted);font:500 9px/1.45 'JetBrains Mono',monospace}
+.v4-mission-status.good{color:var(--signal)}
+.v4-mission-status.error{color:var(--live)}
+.v4-history-mode{display:inline-block;margin-left:5px;padding:3px 5px;border:1px solid var(--line);border-radius:5px;color:var(--signal-2);font:700 7px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.04em;vertical-align:1px}
+
+@media(max-width:650px){
+  .v4-launch-modes{grid-template-columns:repeat(2,1fr)}
+  .v4-variant-head{align-items:flex-start}
+  .v4-variant-meta{flex-wrap:wrap;justify-content:flex-end}
+}
