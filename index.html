@@ -362,6 +362,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 @media(max-width:430px){.channel-grid{grid-template-columns:1fr}.ready-stat{padding:13px}.stream-content h2{font-size:24px}.panel-pad{padding:18px}.tpl-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.transmit-overlay.playing,.transmit-overlay.searching,.transmit-overlay.failing{opacity:0!important}}
 </style>
+<link rel="stylesheet" href="publishing.css">
 </head>
 <body>
 
@@ -686,10 +687,11 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
   <div class="transmission-screen"><div class="transmission-hud"><div class="hud-corner"><strong>UPLINK // DEPLOY</strong><span id="hudStatus">BUFFER ROUTE ACTIVE</span></div><div class="hud-corner right"><strong id="hudTargets">0 TARGETS</strong><span>ENCRYPTED LOCAL CREDENTIAL</span></div><div class="hud-route"><span>SOCIAL SIGNAL</span><i class="hud-route-bar"></i><span id="hudResult">AWAITING ACK</span></div></div></div>
   <div class="signal-sweep"></div><div class="transmit-reticle"></div>
   <div class="transmit-ring"></div><div class="transmit-ring"></div><div class="transmit-ring"></div>
-  <div class="transmit-stamp" id="transmitStamp">Signal Live<small id="transmitStampDetail">Post deployed</small></div>
+  <div class="transmit-stamp" id="transmitStamp">Delivery Status<small id="transmitStampDetail">Awaiting Buffer</small></div>
   <div class="transmit-loading"><div class="loading-ring"></div><div class="loading-ring"></div><div class="loading-ring"></div><div class="transmit-loading-label" id="transmitLoadingLabel">Routing signal…</div></div>
 </div>
 
+<script src="publishing.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

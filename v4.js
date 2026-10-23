@@ -317,46 +317,6 @@
     }
   }
 
-  function postCopyForChannel(template, channel) {
-    const key = normalizeService(channel.service || channel.name);
-    const raw = getVariant(currentSignalKey(), key).trim() || template.copy;
-    return resolveTemplateCopy({ ...template, copy: raw });
-  }
-
-  async function v4PostOne(key, channel, template, allowUrlRetry = true) {
-    const urlSelection = state.postUrlField ? ` ${state.postUrlField}` : '';
-    const mutation = `mutation CreatePost($input:CreatePostInput!){createPost(input:$input){__typename ... on PostActionSuccess{post{id dueAt text channelId status${urlSelection}}} ... on MutationError{message}}}`;
-    const config = MODE_CONFIG[launchMode()];
-    const copy = postCopyForChannel(template, channel);
-    const input = {
-      channelId: channel.id,
-      text: copy,
-      schedulingType: 'automatic',
-      mode: config.bufferMode,
-    };
-    if (config.saveToDraft) input.saveToDraft = true;
-    if (launchMode() === 'schedule') input.dueAt = scheduleDate().toISOString();
-    if (template.image) input.assets = [{ image: { url: template.image } }];
-
-    try {
-      const response = await bufferRequest(key, mutation, { input });
-      const result = response?.data?.createPost;
-      if (!result) throw new Error('Buffer returned an empty post response.');
-      if (result.__typename === 'MutationError') throw new Error(result.message || 'Buffer rejected this post.');
-      if (result.__typename !== 'PostActionSuccess') throw new Error(result.message || `Unexpected Buffer result: ${result.__typename}`);
-      const post = result.post || {};
-      const directUrl = state.postUrlField && typeof post[state.postUrlField] === 'string' ? post[state.postUrlField] : '';
-      return { ...result, postId: post.id || '', url: directUrl, copy, status: post.status || '' };
-    } catch (error) {
-      if (allowUrlRetry && state.postUrlField && /cannot query field|unknown field|selection/i.test(String(error.message || ''))) {
-        state.postUrlField = '';
-        localStorage.setItem(STORAGE.postUrlField, '');
-        return v4PostOne(key, channel, template, false);
-      }
-      throw error;
-    }
-  }
-
   const baseUpdateReadyHud = updateReadyHud;
   updateReadyHud = function v4UpdateReadyHud() {
     baseUpdateReadyHud();
@@ -378,134 +338,27 @@
   };
 
   sendUplink = async function v4SendUplink(template) {
-    if (state.sending || !template) return;
-    const key = localStorage.getItem(STORAGE.key);
-    const targets = state.channels.filter((channel) => state.selectedChannelIds.has(channel.id));
-    if (!key || !targets.length) return;
-    if (launchMode() === 'schedule' && !scheduleValid()) {
+    const mode = launchMode();
+    if (mode === 'schedule' && !scheduleValid()) {
       els.sendLog.textContent = 'Choose a future launch time before scheduling this signal.';
       return;
     }
-
-    const modeConfig = MODE_CONFIG[launchMode()];
-    if (isSettingEnabled(STORAGE.confirm)) {
-      const verb = launchMode() === 'now' ? 'transmit now' : launchMode() === 'queue' ? 'add to the queue' : launchMode() === 'draft' ? 'save as drafts' : `schedule for ${scheduleDate().toLocaleString()}`;
-      const confirmed = window.confirm(`${modeConfig.label}: “${template.label}” → ${targets.length} channel${targets.length === 1 ? '' : 's'} (${verb})?`);
-      if (!confirmed) return;
-    }
-
-    state.sending = true;
-    els.sendBtn.classList.add('sending');
-    els.sendLog.textContent = `${modeConfig.label} pre-flight complete. Routing native signals through Buffer…`;
-    updateReadyHud();
-    showTransmitLoading();
-    playTone('launch');
-
-    try {
-      const allRawCopy = [template.copy, ...targets.map((channel) => getVariant(currentSignalKey(), normalizeService(channel.service || channel.name)))].join('\n');
-      const needsLiveData = /\{\{\s*(game|title|viewers)\s*\}\}/i.test(allRawCopy);
-      if (needsLiveData && localStorage.getItem(STORAGE.twitchLogin)) await checkTwitchLive({ updateUI: true });
-
-      if (!resolveTemplateCopy(template)) throw new Error('This signal resolves to empty copy. Add text or configure its dynamic tokens.');
-      await discoverPostUrlField(key);
-
-      const results = await Promise.allSettled(targets.map((channel) => v4PostOne(key, channel, template)));
-      const okCount = results.filter((result) => result.status === 'fulfilled').length;
-      const failures = results.filter((result) => result.status === 'rejected');
-      const failCount = failures.length;
-      const firstError = failures[0]?.reason;
-      const anyExpired = failures.some((result) => isAuthError(result.reason));
-
-      if (anyExpired) {
-        els.sendLog.textContent = readableError(firstError, 'Buffer rejected the token.');
-        playTransmitFailAnimation();
-        playTone('fail');
-      } else if (okCount > 0) {
-        const successMessage = launchMode() === 'now'
-          ? `Signal live on ${okCount} channel${okCount === 1 ? '' : 's'}. Go play.`
-          : launchMode() === 'queue'
-            ? `${okCount} signal${okCount === 1 ? '' : 's'} added to Buffer queues.`
-            : launchMode() === 'draft'
-              ? `${okCount} draft${okCount === 1 ? '' : 's'} saved in Buffer. Nothing published.`
-              : `${okCount} signal${okCount === 1 ? '' : 's'} scheduled for ${scheduleDate().toLocaleString()}.`;
-        els.sendLog.textContent = failCount ? `${successMessage} ${failCount} failed: ${firstError?.message || 'unknown error'}.` : successMessage;
-        playTransmitAnimation(okCount, targets.length);
-        playTone('success');
-        if (navigator.vibrate) navigator.vibrate([35, 35, 65]);
-      } else {
-        els.sendLog.textContent = `Transmission failed: ${firstError?.message || 'unknown Buffer error'}.`;
-        playTransmitFailAnimation();
-        playTone('fail');
-      }
-
-      const posts = results.map((result, index) => {
-        if (result.status !== 'fulfilled') return null;
-        const channel = targets[index];
-        return {
-          channel: channel.displayName || channel.name || channel.service || 'Channel',
-          service: channel.service || '',
-          url: result.value?.url || '',
-          channelUrl: channel.externalLink || '',
-          postId: result.value?.postId || '',
-          preview: result.value?.copy?.slice(0, 160) || '',
-          status: result.value?.status || '',
-        };
-      }).filter(Boolean);
-
-      const historyEntry = addHistoryEntry({
-        template: template.label,
-        preview: resolveTemplateCopy(template).slice(0, 140),
-        success: okCount,
-        failed: failCount,
-        targetCount: targets.length,
-        launchMode: launchMode(),
-        scheduledFor: launchMode() === 'schedule' ? scheduleDate().toISOString() : '',
-        channels: targets.map((channel) => channel.displayName || channel.service),
-        posts,
-      });
-      if (launchMode() === 'now' && posts.some((post) => post.postId && !post.url)) hydrateHistoryLinks(key, historyEntry.id);
-      renderMissionReport();
-    } catch (error) {
-      els.sendLog.textContent = `Transmission failed: ${error.message || 'unknown error'}.`;
-      playTransmitFailAnimation();
-      playTone('fail');
-      addHistoryEntry({ template: template.label, success: 0, failed: targets.length, targetCount: targets.length, launchMode: launchMode(), channels: targets.map((channel) => channel.displayName || channel.service) });
-      renderMissionReport();
-    } finally {
-      state.sending = false;
-      els.sendBtn.classList.remove('sending');
-      hideTransmitLoading();
-      updateReadyHud();
-    }
-  };
-
-  const basePlayTransmitAnimation = playTransmitAnimation;
-  playTransmitAnimation = function v4PlayTransmitAnimation(successCount = 1, targetCount = successCount) {
-    const mode = launchMode();
-    if (mode === 'now') {
-      basePlayTransmitAnimation(successCount, targetCount);
-      return;
-    }
-
-    const display = mode === 'queue'
-      ? { stamp: 'Signal Queued', detail: `${successCount} of ${targetCount} routed to Buffer`, status: 'QUEUE ROUTE COMPLETE', result: 'STANDBY' }
-      : mode === 'schedule'
-        ? { stamp: 'Signal Scheduled', detail: `${successCount} of ${targetCount} launch times locked`, status: 'TIMED ROUTE COMPLETE', result: 'CLOCK ARMED' }
-        : { stamp: 'Draft Saved', detail: `${successCount} of ${targetCount} held in Buffer`, status: 'DRAFT ROUTE COMPLETE', result: 'NO PUBLISH' };
-
-    els.transmitStamp.innerHTML = `${display.stamp}<small id="transmitStampDetail">${display.detail}</small>`;
-    els.transmitStampDetail = $('transmitStampDetail');
-    els.hudStatus.textContent = display.status;
-    els.hudTargets.textContent = `${successCount}/${targetCount} ACKNOWLEDGED`;
-    els.hudResult.textContent = display.result;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    els.screenFlash.classList.remove('flash');
-    void els.screenFlash.offsetWidth;
-    els.screenFlash.classList.add('flash');
-    els.transmitOverlay.classList.remove('fading', 'searching', 'failing');
-    els.transmitOverlay.classList.add('playing');
-    window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 1050);
-    window.setTimeout(() => els.transmitOverlay.classList.remove('playing', 'fading'), 1380);
+    const config = MODE_CONFIG[mode];
+    const dueAt = mode === 'schedule' ? scheduleDate().toISOString() : '';
+    // Capture variants and mode before any asynchronous work or UI edits.
+    const variants = Object.fromEntries(state.channels.map((channel) => [channel.id,
+      getVariant(currentSignalKey(), normalizeService(channel.service || channel.name)).trim() || template?.copy || '']));
+    return sendReliableLaunch(template, {
+      mode, scheduledFor: dueAt,
+      needsLiveData: /\{\{\s*(game|title|viewers)\s*\}\}/i.test(Object.values(variants).join('\n')),
+      makePayload: (channel, signal) => ({
+        channelId: channel.id, text: resolveTemplateCopy({ ...signal, copy: variants[channel.id] }),
+        schedulingType: 'automatic', mode: config.bufferMode,
+        ...(config.saveToDraft ? { saveToDraft: true } : {}),
+        ...(dueAt ? { dueAt } : {}),
+        ...(signal.image ? { assets: [{ image: { url: signal.image } }] } : {}),
+      }),
+    });
   };
 
   function createMissionPanel() {
@@ -520,10 +373,8 @@
   }
 
   function latestMission() {
-    return state.history.find((entry) => {
-      const sentMission = !entry.launchMode || entry.launchMode === 'now';
-      return sentMission && entry.success > 0 && Array.isArray(entry.posts) && entry.posts.some((post) => post.postId);
-    }) || null;
+    const entry = state.history.find((record) => record.deliveries?.some((post) => post.state === 'published' && post.postId));
+    return entry ? { ...entry, posts: entry.deliveries.filter((post) => post.state === 'published' && post.postId) } : null;
   }
 
   function renderMissionReport() {
@@ -619,7 +470,7 @@
   const baseRenderHistory = renderHistory;
   renderHistory = function v4RenderHistory() {
     baseRenderHistory();
-    const entries = state.history.slice(0, 6);
+    const entries = state.history;
     document.querySelectorAll('#historyList .history-item').forEach((item, index) => {
       const entry = entries[index];
       if (!entry?.launchMode) return;
@@ -627,24 +478,11 @@
       if (title && !title.querySelector('.v4-history-mode')) {
         const badge = document.createElement('span');
         badge.className = 'v4-history-mode';
-        badge.textContent = MODE_CONFIG[entry.launchMode]?.label || entry.launchMode;
+        badge.textContent = entry.launchMode === 'now' ? 'Immediate request' : MODE_CONFIG[entry.launchMode]?.label || entry.launchMode;
         title.appendChild(badge);
       }
 
-      const result = item.querySelector('.history-result');
-      if (result && entry.success) {
-        if (entry.launchMode === 'queue') result.textContent = `${entry.success} queued`;
-        if (entry.launchMode === 'schedule') result.textContent = `${entry.success} scheduled`;
-        if (entry.launchMode === 'draft') result.textContent = `${entry.success} draft${entry.success === 1 ? '' : 's'}`;
-      }
 
-      if (entry.launchMode !== 'now') {
-        item.querySelectorAll('.history-link').forEach((anchor) => {
-          anchor.href = 'https://publish.buffer.com/';
-          anchor.textContent = 'Review in Buffer';
-          anchor.title = 'Open Buffer to review this queued, scheduled, or draft signal.';
-        });
-      }
     });
     renderMissionReport();
   };

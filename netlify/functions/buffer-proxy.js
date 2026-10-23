@@ -42,7 +42,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 400,
       headers: corsHeaders,
-      body: JSON.stringify(formatProxyError("Invalid request body", { code: "BAD_REQUEST", status: 400, retryable: false })),
+      body: JSON.stringify(formatProxyError("Invalid request body", { code: "BAD_REQUEST", status: 400, retryable: false, outcome: "rejected" })),
     };
   }
 
@@ -52,7 +52,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 400,
       headers: corsHeaders,
-      body: JSON.stringify(formatProxyError("No query provided", { code: "BAD_REQUEST", status: 400, retryable: false })),
+      body: JSON.stringify(formatProxyError("No query provided", { code: "BAD_REQUEST", status: 400, retryable: false, outcome: "rejected" })),
     };
   }
 
@@ -60,11 +60,12 @@ exports.handler = async function (event) {
     return {
       statusCode: 401,
       headers: corsHeaders,
-      body: JSON.stringify(formatProxyError("No Buffer token provided", { code: "MISSING_TOKEN", status: 401, retryable: false })),
+      body: JSON.stringify(formatProxyError("No Buffer token provided", { code: "MISSING_TOKEN", status: 401, retryable: false, outcome: "rejected" })),
     };
   }
 
   try {
+    // A timeout/5xx can occur after Buffer commits a mutation. Never replay it here.
     const res = await fetchWithTimeout("https://api.buffer.com", {
       method: "POST",
       headers: {
@@ -87,7 +88,8 @@ exports.handler = async function (event) {
           formatProxyError(`Buffer returned HTTP ${res.status} with non-JSON body: ${text.slice(0, 300)}`, {
             code: "BUFFER_NON_JSON",
             status: res.status,
-            retryable: res.status >= 500,
+            retryable: false,
+            outcome: "uncertain",
           })
         ),
       };
@@ -107,7 +109,8 @@ exports.handler = async function (event) {
           formatProxyError(msg, {
             code,
             status: res.status,
-            retryable: res.status === 429 || res.status >= 500,
+            retryable: res.status === 429,
+            outcome: [401, 403, 429].includes(res.status) ? "rejected" : "uncertain",
             retryAfter: toIntOrNull(res.headers.get("retry-after")),
           })
         ),
@@ -124,7 +127,8 @@ exports.handler = async function (event) {
         formatProxyError(isAbort ? "Buffer request timed out" : (err.message || "Proxy error"), {
           code: isAbort ? "PROXY_TIMEOUT" : "PROXY_NETWORK_ERROR",
           status: 502,
-          retryable: true,
+          retryable: false,
+          outcome: "uncertain",
         })
       ),
     };

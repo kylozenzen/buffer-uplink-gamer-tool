@@ -1,0 +1,8 @@
+/* Delivery recovery keeps the existing deck typography and controls. */
+.delivery-details { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
+.delivery-row { width: 100%; display: grid; gap: 5px; padding-block: 8px; border-top: 1px solid var(--border, #29333e); }
+.delivery-row > span { overflow-wrap: anywhere; }
+.delivery-row > span + span { opacity: .75; }
+.delivery-row pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; font-size: 11px; }
+.delivery-row summary { cursor: pointer; }
+.history-result { max-width: 100%; white-space: normal; }

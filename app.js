@@ -351,6 +351,7 @@ els.connectBtn.addEventListener('click', async () => {
     showApp();
     syncSettingToggles();
     renderAll();
+    resumeDeliveries();
     renderTwitchState(null);
     checkTwitchLive();
     playTone('ready');
@@ -378,25 +379,28 @@ function readableError(error, fallback) {
 }
 
 async function bufferRequest(key, query, variables = {}) {
-  const response = await fetch(BUFFER_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: key, query, variables }),
-  });
-
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 25000);
+  let response;
   let data;
   try {
+    response = await fetch(BUFFER_ENDPOINT, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: key, query, variables }), signal: controller.signal,
+    });
     data = await response.json();
-  } catch {
-    throw Object.assign(new Error(`Buffer request failed (${response.status})`), { code: 'PROXY_BAD_RESPONSE' });
-  }
+  } catch (error) {
+    throw Object.assign(new Error(error.name === 'AbortError' ? 'Buffer response timed out; the post may still have been created.' : 'Buffer response interrupted; check delivery status before sending again.'), { code: 'RESPONSE_UNCERTAIN', outcome: 'uncertain' });
+  } finally { window.clearTimeout(timeout); }
 
-  if (data.errors?.length) {
+  if (data.errors?.length && !data.data?.createPost?.post?.id) {
     const first = data.errors[0] || {};
     throw Object.assign(new Error(first.message || 'Buffer request failed'), {
       code: first.code,
       status: first.status,
       retryable: first.retryable,
+      retryAfter: first.retryAfter,
+      outcome: first.outcome || (['GRAPHQL_VALIDATION_FAILED', 'GRAPHQL_PARSE_FAILED'].includes(first.extensions?.code) ? 'rejected' : 'uncertain'),
     });
   }
 
@@ -1349,90 +1353,154 @@ function updateReadyHud() {
 els.sendBtn.addEventListener('click', () => sendUplink(currentSignal()));
 
 async function sendUplink(template) {
+  return sendReliableLaunch(template, { mode: 'now', makePayload: (channel, signal) => ({
+    channelId: channel.id, text: resolveTemplateCopy(signal), schedulingType: 'automatic', mode: 'shareNow',
+    ...(signal.image ? { assets: [{ image: { url: signal.image } }] } : {}),
+  }) });
+}
+
+function persistDeliveries() {
+  state.history.forEach((entry) => {
+    if (!entry.deliveries) return;
+    entry.success = entry.deliveries.filter((d) => d.state === 'published').length;
+    entry.failed = entry.deliveries.filter((d) => d.state === 'failed').length;
+    entry.posts = entry.deliveries.filter((d) => d.postId);
+  });
+  saveJSON(STORAGE.history, state.history);
+  renderHistory();
+}
+
+function deliveryEngine(key) {
+  return UplinkPublishing.createEngine({
+    request: (query, variables) => bufferRequest(key, query, variables),
+    persist: persistDeliveries,
+    urlField: state.postUrlField || '',
+  });
+}
+
+async function withDeliveryLock(action) {
+  if (!navigator.locks) throw new Error('Safe publishing requires a browser with Web Locks support. Use a current browser on HTTPS.');
+  return navigator.locks.request('uplink-deliveries', { ifAvailable: true }, async (lock) => {
+    if (!lock) throw new Error('Another Uplink tab is updating deliveries. Wait for it to finish.');
+    state.history = loadJSON(STORAGE.history, []);
+    return action();
+  });
+}
+
+async function sendReliableLaunch(template, options) {
   if (state.sending || !template) return;
   const key = localStorage.getItem(STORAGE.key);
-  const targets = state.channels.filter((channel) => state.selectedChannelIds.has(channel.id));
+  const targets = state.channels.filter((channel) => state.selectedChannelIds.has(channel.id)).map((channel) => ({ ...channel }));
   if (!key || !targets.length) return;
-
-  if (isSettingEnabled(STORAGE.confirm)) {
-    const confirmed = window.confirm(`Transmit “${template.label}” to ${targets.length} channel${targets.length === 1 ? '' : 's'} now?`);
-    if (!confirmed) return;
-  }
-
+  const signal = JSON.parse(JSON.stringify(template));
+  if (isSettingEnabled(STORAGE.confirm) && !window.confirm(`Send “${signal.label}” to ${targets.length} destinations (${options.mode})?`)) return;
   state.sending = true;
   els.sendBtn.classList.add('sending');
-  els.sendLog.textContent = 'Pre-flight complete. Routing signal through Buffer…';
   updateReadyHud();
   showTransmitLoading();
   playTone('launch');
-
   try {
-    const needsLiveData = /\{\{\s*(game|title|viewers)\s*\}\}/i.test(template.copy);
-    if (needsLiveData && localStorage.getItem(STORAGE.twitchLogin)) {
-      await checkTwitchLive({ updateUI: true });
+    if (options.needsLiveData ?? /\{\{\s*(game|title|viewers)\s*\}\}/i.test(signal.copy)) {
+      if (localStorage.getItem(STORAGE.twitchLogin)) await checkTwitchLive({ updateUI: true });
     }
-
-    const renderedTemplate = { ...template, copy: resolveTemplateCopy(template) };
-    if (!renderedTemplate.copy) throw new Error('This loadout resolves to empty copy. Add text or configure its dynamic tokens.');
-
+    // Resolve every input once, before sending any mutation. Recovery uses these bytes.
+    const deliveries = targets.map((channel) => ({
+      channelId: channel.id,
+      channel: channel.displayName || channel.name || channel.service || channel.id,
+      service: channel.service || '', channelUrl: channel.externalLink || '',
+      payload: options.makePayload(channel, signal), postId: '', state: 'not_attempted',
+      retryEligible: false, error: null, attempts: 0,
+    }));
+    if (deliveries.some((d) => !d.payload.text.trim())) throw new Error('A destination resolves to empty copy. Check its signal and dynamic tokens.');
     await discoverPostUrlField(key);
-    const results = await Promise.allSettled(targets.map((channel) => postOne(key, channel, renderedTemplate)));
-    const okCount = results.filter((result) => result.status === 'fulfilled').length;
-    const failures = results.filter((result) => result.status === 'rejected');
-    const failCount = failures.length;
-    const firstError = failures[0]?.reason;
-    const anyExpired = failures.some((result) => isAuthError(result.reason));
-
-    if (anyExpired) {
-      els.sendLog.textContent = readableError(firstError, 'Buffer rejected the token.');
-      playTransmitFailAnimation();
-      playTone('fail');
-    } else if (okCount > 0) {
-      els.sendLog.textContent = failCount
-        ? `Signal reached ${okCount} channel${okCount === 1 ? '' : 's'}; ${failCount} failed: ${firstError?.message || 'unknown error'}.`
-        : `Signal live on ${okCount} channel${okCount === 1 ? '' : 's'}. Queue cleared. Go play.`;
-      playTransmitAnimation(okCount, targets.length);
-      playTone('success');
-      if (navigator.vibrate) navigator.vibrate([35, 35, 65]);
-    } else {
-      els.sendLog.textContent = `Transmission failed: ${firstError?.message || 'unknown Buffer error'}.`;
-      playTransmitFailAnimation();
-      playTone('fail');
-    }
-
-    const posts = results.map((result, index) => {
-      if (result.status !== 'fulfilled') return null;
-      const channel = targets[index];
-      return {
-        channel: channel.displayName || channel.name || channel.service || 'Channel',
-        service: channel.service || '',
-        url: result.value?.url || '',
-        channelUrl: channel.externalLink || '',
-        postId: result.value?.postId || '',
-      };
-    }).filter(Boolean);
-
-    const historyEntry = addHistoryEntry({
-      template: template.label,
-      preview: renderedTemplate.copy.slice(0, 140),
-      success: okCount,
-      failed: failCount,
-      targetCount: targets.length,
-      channels: targets.map((channel) => channel.displayName || channel.service),
-      posts,
+    await withDeliveryLock(async () => {
+      const entry = { id: randomId(), timestamp: Date.now(), template: signal.label,
+        preview: deliveries[0].payload.text.slice(0, 140), targetCount: deliveries.length,
+        launchMode: options.mode, scheduledFor: options.scheduledFor || '', deliveries };
+      state.history.unshift(entry);
+      persistDeliveries(); // Storage must work before we create anything.
+      const engine = deliveryEngine(key);
+      await Promise.all(deliveries.map((delivery) => engine.create(delivery)));
+      els.sendLog.textContent = UplinkPublishing.summary(deliveries);
+      await engine.poll(deliveries);
+      els.sendLog.textContent = UplinkPublishing.summary(deliveries);
+      playDeliveryReport(deliveries);
     });
-    if (posts.some((post) => post.postId && !post.url)) hydrateHistoryLinks(key, historyEntry.id);
   } catch (error) {
-    els.sendLog.textContent = `Transmission failed: ${error.message || 'unknown error'}.`;
-    playTransmitFailAnimation();
-    playTone('fail');
-    addHistoryEntry({ template: template.label, success: 0, failed: targets.length, targetCount: targets.length, channels: targets.map((channel) => channel.displayName || channel.service) });
+    els.sendLog.textContent = `Launch needs attention: ${error.message}. Review delivery history before sending again.`;
   } finally {
     state.sending = false;
     els.sendBtn.classList.remove('sending');
     hideTransmitLoading();
     updateReadyHud();
+    renderHistory();
   }
+}
+
+function playDeliveryReport(deliveries) {
+  const published = deliveries.filter((d) => d.state === 'published').length;
+  els.transmitStamp.textContent = published === deliveries.length ? 'Publication Confirmed' : 'Delivery Report';
+  const detail = document.createElement('small');
+  detail.id = 'transmitStampDetail'; detail.textContent = UplinkPublishing.summary(deliveries);
+  els.transmitStamp.appendChild(detail); els.transmitStampDetail = detail;
+  els.hudStatus.textContent = 'BUFFER STATUS';
+  els.hudTargets.textContent = `${published}/${deliveries.length} PUBLISHED`;
+  els.hudResult.textContent = published === deliveries.length ? 'CONFIRMED' : 'REVIEW DELIVERIES';
+  if (published === deliveries.length) {
+    playTone('success');
+    if (navigator.vibrate) navigator.vibrate([35, 35, 65]);
+  }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  els.screenFlash.classList.remove('flash');
+  void els.screenFlash.offsetWidth;
+  els.screenFlash.classList.add('flash');
+  els.transmitOverlay.classList.remove('searching', 'fading', 'failing');
+  els.transmitOverlay.classList.add('playing');
+  window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 1050);
+  window.setTimeout(() => els.transmitOverlay.classList.remove('playing', 'fading'), 1380);
+}
+
+async function recoverDeliveries(entryId, retry = false) {
+  if (state.sending) return;
+  const key = localStorage.getItem(STORAGE.key);
+  if (!key) return;
+  state.sending = true;
+  updateReadyHud();
+  try {
+    await withDeliveryLock(async () => {
+      const entry = state.history.find((record) => record.id === entryId);
+      if (!entry?.deliveries) return;
+      const engine = deliveryEngine(key);
+      if (retry) await engine.retry(entry.deliveries);
+      else await Promise.all(entry.deliveries.filter((d) => d.postId).map(engine.reconcile));
+      await engine.poll(entry.deliveries);
+      els.sendLog.textContent = UplinkPublishing.summary(entry.deliveries);
+    });
+  } catch (error) { els.sendLog.textContent = error.message; }
+  finally { state.sending = false; updateReadyHud(); renderHistory(); }
+}
+
+async function resumeDeliveries() {
+  if (!localStorage.getItem(STORAGE.key) || state.sending) return;
+  try {
+    await withDeliveryLock(async () => {
+      for (const entry of state.history) {
+        for (const delivery of entry.deliveries || []) {
+          if (delivery.state === 'not_attempted') {
+            delivery.state = 'failed'; delivery.retryEligible = true;
+            delivery.error = { message: 'The previous session ended before this destination was sent.', outcome: 'rejected' };
+          }
+          if (delivery.state === 'sending') {
+            delivery.state = 'unknown';
+            delivery.retryEligible = false;
+            delivery.error = { message: 'The previous session ended before confirmation. Review Buffer before sending again.', outcome: 'uncertain' };
+          }
+        }
+      }
+      persistDeliveries();
+      await deliveryEngine(localStorage.getItem(STORAGE.key)).poll(state.history.flatMap((entry) => entry.deliveries || []));
+    });
+  } catch (error) { els.sendLog.textContent = `Status check paused: ${error.message}`; }
 }
 
 async function discoverPostUrlField(key) {
@@ -1449,76 +1517,7 @@ async function discoverPostUrlField(key) {
   return state.postUrlField;
 }
 
-async function postOne(key, channel, template, allowUrlRetry = true) {
-  const urlSelection = state.postUrlField ? ` ${state.postUrlField}` : '';
-  const mutation = `mutation CreatePost($input:CreatePostInput!){createPost(input:$input){__typename ... on PostActionSuccess{post{id dueAt text channelId${urlSelection}}} ... on MutationError{message}}}`;
-  const input = {
-    channelId: channel.id,
-    text: template.copy,
-    schedulingType: 'automatic',
-    mode: 'shareNow',
-  };
-  if (template.image) input.assets = [{ image: { url: template.image } }];
-
-  try {
-    const response = await bufferRequest(key, mutation, { input });
-    const result = response?.data?.createPost;
-    if (!result) throw new Error('Buffer returned an empty post response.');
-    if (result.__typename === 'MutationError') throw new Error(result.message || 'Buffer rejected this post.');
-    if (result.__typename !== 'PostActionSuccess') throw new Error(result.message || `Unexpected Buffer result: ${result.__typename}`);
-    const post = result.post || {};
-    const directUrl = state.postUrlField && typeof post[state.postUrlField] === 'string' ? post[state.postUrlField] : '';
-    return { ...result, postId: post.id || '', url: directUrl };
-  } catch (error) {
-    if (allowUrlRetry && state.postUrlField && /cannot query field|unknown field|selection/i.test(String(error.message || ''))) {
-      state.postUrlField = '';
-      localStorage.setItem(STORAGE.postUrlField, '');
-      return postOne(key, channel, template, false);
-    }
-    throw error;
-  }
-}
-
 /* ---------- local history ---------- */
-
-function addHistoryEntry(entry) {
-  const record = { id: randomId(), timestamp: Date.now(), ...entry };
-  state.history.unshift(record);
-  state.history = state.history.slice(0, 12);
-  saveJSON(STORAGE.history, state.history);
-  renderHistory();
-  return record;
-}
-
-async function hydrateHistoryLinks(key, entryId) {
-  const delays = [1200, 2200, 3600];
-  for (const delay of delays) {
-    await new Promise((resolve) => window.setTimeout(resolve, delay));
-    const entry = state.history.find((item) => item.id === entryId);
-    if (!entry || !Array.isArray(entry.posts)) return;
-    const unresolved = entry.posts.filter((post) => post.postId && !post.url);
-    if (!unresolved.length) return;
-
-    let changed = false;
-    await Promise.all(unresolved.map(async (post) => {
-      try {
-        const data = await bufferRequest(key, `query GetPost($input: PostInput!) { post(input: $input) { id externalLink } }`, { input: { id: post.postId } });
-        const url = data?.data?.post?.externalLink;
-        if (typeof url === 'string' && url) {
-          post.url = url;
-          changed = true;
-        }
-      } catch {
-        // Publishing can take a moment. The next polling pass will retry.
-      }
-    }));
-
-    if (changed) {
-      saveJSON(STORAGE.history, state.history);
-      renderHistory();
-    }
-  }
-}
 
 function renderHistory() {
   els.historyList.innerHTML = '';
@@ -1527,14 +1526,14 @@ function renderHistory() {
     return;
   }
 
-  state.history.slice(0, 6).forEach((entry) => {
+  state.history.forEach((entry) => {
     const item = document.createElement('div');
-    const failed = !entry.success;
+    const failed = entry.deliveries?.some((d) => ['failed', 'unknown'].includes(d.state));
     item.className = `history-item${failed ? ' fail' : ''}`;
 
     const icon = document.createElement('div');
     icon.className = 'history-icon';
-    icon.textContent = failed ? '×' : '✓';
+    icon.textContent = entry.deliveries?.every((d) => d.state === 'published') ? '✓' : '·';
 
     const copy = document.createElement('div');
     copy.className = 'history-copy';
@@ -1547,7 +1546,7 @@ function renderHistory() {
 
     const result = document.createElement('div');
     result.className = 'history-result';
-    result.textContent = failed ? 'Failed' : `${entry.success} live`;
+    result.textContent = entry.deliveries ? UplinkPublishing.summary(entry.deliveries) : 'Legacy result — status unverified';
 
     item.append(icon, copy, result);
 
@@ -1555,7 +1554,7 @@ function renderHistory() {
     if (successfulPosts.length) {
       const links = document.createElement('div');
       links.className = 'history-links';
-      successfulPosts.forEach((post) => {
+      successfulPosts.filter((post) => entry.deliveries && post.state === 'published').forEach((post) => {
         const anchor = document.createElement('a');
         anchor.className = 'history-link';
         anchor.target = '_blank';
@@ -1572,6 +1571,45 @@ function renderHistory() {
       item.appendChild(links);
     }
 
+    if (entry.deliveries) {
+      const details = document.createElement('div');
+      details.className = 'history-links delivery-details';
+      entry.deliveries.forEach((delivery) => {
+        const row = document.createElement('div');
+        row.className = 'delivery-row';
+        const label = document.createElement('span');
+        label.textContent = `${delivery.channel} (${delivery.service || delivery.channelId}) · ${delivery.state === 'unknown' ? `unresolved${delivery.status ? ` (${delivery.status})` : ''}` : delivery.state}${delivery.postId ? ` · Buffer ${delivery.postId}` : ''}`;
+        const note = document.createElement('span');
+        note.textContent = delivery.reconciliationError || delivery.error?.message || '';
+        if (delivery.state === 'unknown' || (delivery.state === 'failed' && delivery.postId)) {
+          note.textContent += delivery.postId ? ' Review or retry this existing post in Buffer; Uplink will not create a replacement.' : ' Open Buffer and check this account, text, and time before manually sending again. Uplink cannot safely retry without a post ID.';
+        }
+        if (delivery.retryAfterAt > Date.now()) note.textContent += ` Retry available after ${new Date(delivery.retryAfterAt).toLocaleTimeString()}.`;
+        const payload = document.createElement('details');
+        const heading = document.createElement('summary');
+        heading.textContent = 'Submitted payload';
+        const text = document.createElement('pre');
+        text.textContent = JSON.stringify(delivery.payload, null, 2);
+        payload.append(heading, text);
+        row.append(label, note, payload);
+        details.appendChild(row);
+      });
+      const review = document.createElement('a');
+      review.href = 'https://publish.buffer.com/'; review.target = '_blank'; review.rel = 'noopener noreferrer';
+      review.className = 'history-link'; review.textContent = 'Review in Buffer';
+      details.appendChild(review);
+      if (entry.deliveries.some((d) => d.postId)) {
+        const check = document.createElement('button'); check.type = 'button'; check.className = 'btn';
+        check.textContent = 'Check delivery status'; check.disabled = state.sending;
+        check.addEventListener('click', () => recoverDeliveries(entry.id)); details.appendChild(check);
+      }
+      if (entry.deliveries.some((d) => d.state === 'failed' && d.retryEligible && !d.postId)) {
+        const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn';
+        retry.textContent = 'Retry failed destinations'; retry.disabled = state.sending;
+        retry.addEventListener('click', () => recoverDeliveries(entry.id, true)); details.appendChild(retry);
+      }
+      item.appendChild(details);
+    }
     els.historyList.appendChild(item);
   });
 }
@@ -1587,12 +1625,21 @@ function formatRelativeTime(timestamp) {
   return `${days}d ago`;
 }
 
-els.clearHistoryBtn.addEventListener('click', () => {
-  if (!state.history.length) return;
-  if (!window.confirm('Clear local transmission history?')) return;
-  state.history = [];
-  localStorage.removeItem(STORAGE.history);
-  renderHistory();
+els.clearHistoryBtn.addEventListener('click', async () => {
+  if (state.sending) return;
+  try {
+    await withDeliveryLock(async () => {
+      if (!state.history.length) return;
+      if (state.history.some((entry) => entry.deliveries?.some((d) => !['published', 'draft'].includes(d.state)))) {
+        els.sendLog.textContent = 'Keep delivery history while destinations need reconciliation or recovery.';
+        return;
+      }
+      if (!window.confirm('Clear local transmission history?')) return;
+      state.history = [];
+      localStorage.removeItem(STORAGE.history);
+      renderHistory();
+    });
+  } catch (error) { els.sendLog.textContent = error.message; }
 });
 
 /* ---------- settings ---------- */
@@ -1629,6 +1676,7 @@ els.replayTourBtn.addEventListener('click', () => startTour(0));
 els.helpTourBtn.addEventListener('click', () => startTour(0));
 
 els.disconnectBtn.addEventListener('click', () => {
+  if (state.sending) { els.sendLog.textContent = 'Wait for the current delivery check before disconnecting.'; return; }
   if (!window.confirm('Disconnect Buffer and wipe all Uplink data stored in this browser?')) return;
   Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
   window.location.reload();
@@ -1807,37 +1855,8 @@ function hideTransmitLoading() {
   els.transmitOverlay.classList.remove('searching');
 }
 
-function playTransmitAnimation(successCount = 1, targetCount = successCount) {
-  els.transmitStamp.innerHTML = `Signal Live<small id="transmitStampDetail">${successCount} of ${targetCount} post${targetCount === 1 ? '' : 's'} deployed</small>`;
-  els.transmitStampDetail = $('transmitStampDetail');
-  els.hudStatus.textContent = 'SOCIAL POST DEPLOYED';
-  els.hudTargets.textContent = `${successCount}/${targetCount} ACKNOWLEDGED`;
-  els.hudResult.textContent = 'OPEN COMMS';
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  els.screenFlash.classList.remove('flash');
-  void els.screenFlash.offsetWidth;
-  els.screenFlash.classList.add('flash');
-  els.transmitOverlay.classList.remove('fading', 'searching', 'failing');
-  els.transmitOverlay.classList.add('playing');
-  window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 1050);
-  window.setTimeout(() => els.transmitOverlay.classList.remove('playing', 'fading'), 1380);
-}
-
-function playTransmitFailAnimation() {
-  els.transmitStamp.innerHTML = 'Signal Lost<small id="transmitStampDetail">Route rejected</small>';
-  els.transmitStampDetail = $('transmitStampDetail');
-  els.hudStatus.textContent = 'TRANSMISSION ERROR';
-  els.hudTargets.textContent = 'NO ACKNOWLEDGEMENT';
-  els.hudResult.textContent = 'CHECK BUFFER';
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  els.transmitOverlay.classList.remove('fading', 'searching', 'playing');
-  els.transmitOverlay.classList.add('failing');
-  window.setTimeout(() => els.transmitOverlay.classList.add('fading'), 760);
-  window.setTimeout(() => {
-    els.transmitOverlay.classList.remove('failing', 'fading');
-    els.transmitStamp.innerHTML = 'Signal Live<small id="transmitStampDetail">Post deployed</small>';
-    els.transmitStampDetail = $('transmitStampDetail');
-  }, 1100);
-}
-
 boot();
+window.setTimeout(resumeDeliveries, 0);
+window.addEventListener('storage', (event) => {
+  if (event.key === STORAGE.history && !state.sending) { state.history = loadJSON(STORAGE.history, []); renderHistory(); }
+});

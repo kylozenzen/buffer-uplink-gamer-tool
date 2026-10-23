@@ -123,3 +123,33 @@ The v3 build was checked in a browser harness at desktop and mobile viewport siz
 - Full-screen success animation.
 - Desktop and mobile responsive layouts.
 - JavaScript syntax and DOM ID/reference consistency.
+
+## Publication status and recovery
+
+Each launch now saves a delivery for every destination before contacting Buffer. Expand **Submitted payload** in history to see the exact resolved text, image URL, destination ID, and scheduling input. Retries use that saved input even if you subsequently change the composer, platform variants, channels, or launch mode.
+
+Creation acceptance is separate from publication. Buffer's `published` or `sent` lifecycle state confirms publication (`sent` is also the status filter used by this app's existing recent-post query). Pending, queued, scheduled, draft, failed, and unrecognized statuses remain distinct. A missing permalink does not mean a post failed, and a permalink alone does not confirm publication. Mode badges describe the requested launch mode; each destination's status describes the returned outcome. Older history entries lack reliable delivery data and are marked unverified.
+
+Status checks run immediately, then after 1.5, 4, and 9 seconds. Unresolved post IDs remain in browser storage and are checked again when Uplink reopens. **Check delivery status** also refreshes existing post IDs, including drafts and failures. Published posts are not recreated. History with unfinished deliveries cannot be cleared accidentally.
+
+**Retry failed destinations** only resubmits destinations with a definite creation rejection and no Buffer post ID. Rate-limit retry delays are respected. If Buffer returned a post ID, Uplink checks that post instead of creating another one; manage any retry of that existing post in Buffer. A timeout, interrupted response, unexpected response, or server error may hide a successful creation. Those outcomes stay **unresolved** and cannot be retried automatically. Review the destination, launch time, and saved payload in Buffer before deciding whether to send again manually.
+
+The proxy performs one upstream request per client request. Neither the proxy nor the client automatically replays a create mutation. The previous error-message-based field-selection retry has been removed. Upstream idempotency and mutation retry semantics could not be verified against Buffer's current documentation in this environment, so Uplink does not assume either capability or call an undocumented retry mutation.
+
+Delivery history and Buffer credentials remain local to this browser. Recovery requires the same browser data; clearing site data or explicitly disconnecting and wiping Uplink removes it. Web Locks on HTTPS (or localhost during development) coordinate launch/recovery updates across tabs; use a current browser. This is not server-side deduplication across devices or protection against an intentionally repeated new launch.
+
+### Reliability checks
+
+Run the dependency-free state-machine and Netlify proxy tests:
+
+```sh
+node --test tests/*.test.js
+```
+
+For browser integration checks, install Playwright or playwright-core outside the checkout if needed. With Chromium available:
+
+```sh
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright-core CHROMIUM_PATH=/usr/bin/chromium node tests/browser.cjs
+```
+
+The browser harness tests both the source HTML and an isolated Netlify-style V4 build, uses mocked Buffer responses, and does not send real posts. It covers partial failure recovery, saved payload reuse, interrupted sessions, uncertain creation outcomes, queue/schedule/draft states, and mobile layout. It also verifies that V4 injection is repeatable. No live social publication is performed by these checks.
