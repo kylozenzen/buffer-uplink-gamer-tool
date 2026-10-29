@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#080b12">
-<meta name="description" content="Uplink is a one-action broadcast deck for streamers. Build reusable launch signals and publish them through Buffer.">
-<title>Uplink — Streamer Broadcast Deck</title>
+<meta name="description" content="Announce your Twitch stream across social and Discord, discover community clips, and turn your best moments into Buffer ideas, video drafts, or queued posts.">
+<title>Uplink — Go live. Keep the signal going.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -362,6 +362,8 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 @media(max-width:430px){.channel-grid{grid-template-columns:1fr}.ready-stat{padding:13px}.stream-content h2{font-size:24px}.panel-pad{padding:18px}.tpl-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.transmit-overlay.playing,.transmit-overlay.searching,.transmit-overlay.failing{opacity:0!important}}
 </style>
+<link rel="stylesheet" href="v4.css">
+<link rel="stylesheet" href="v5.css">
 </head>
 <body>
 
@@ -375,11 +377,11 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
   <main>
     <section class="landing-hero">
       <div class="landing-copy">
-        <div class="eyebrow">Built for the thirty seconds before “go live”</div>
-        <h1>One button.<span>Every signal.</span></h1>
-        <p>Uplink turns your social media channels, Twitch stream data, reusable announcements, and spur-of-the-moment posts into one focused launch deck.</p>
+        <div class="eyebrow">Before the stream. After the highlights.</div>
+        <h1>Go live.<span>Keep the signal going.</span></h1>
+        <p>Announce your stream across social and Discord. Find the moments your community clipped. Turn them into Buffer ideas, video drafts, and your next week of posts.</p>
         <div class="hero-cta-row"><button class="btn btn-primary" id="heroSetupBtn">Initialize your deck</button><a class="btn" href="#how-it-works" style="text-decoration:none">See the workflow</a></div>
-        <div class="hero-signup">Uplink publishes through Buffer — the tool that actually posts to your social channels. <a href="https://join.buffer.com/ben-campbell" target="_blank" rel="noopener">New to Buffer? Start free →</a></div>
+        <div class="hero-signup">Social publishing runs through Buffer. Discord announcements go directly to your server. <a href="https://join.buffer.com/ben-campbell" target="_blank" rel="noopener">New to Buffer? Start free →</a></div>
         <div class="hero-note">Your Buffer access token is a creator credential. Treat it exactly like your stream key: never paste it into a tool you do not trust, never show it on stream, and rotate it if it is exposed.</div>
       </div>
       <div class="landing-deck" aria-label="High-resolution preview of the Uplink launch deck">
@@ -391,32 +393,42 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
             <div class="demo-card demo-compose"><div class="demo-compose-tabs"><i></i><i></i></div><div class="demo-textarea"><i></i><i></i><i></i></div></div>
           </div>
           <div class="demo-side">
-            <div class="demo-card demo-send"><div class="demo-ready"></div><div class="demo-button">Transmit</div></div>
+            <div class="demo-card demo-send"><div class="demo-ready"></div><div class="demo-button">Go live + Discord</div></div>
             <div class="demo-card demo-history"><div class="demo-targets-head"></div><div class="demo-history-row"><i></i><b></b><em></em></div><div class="demo-history-row"><i></i><b></b><em></em></div><div class="demo-history-row"><i></i><b></b><em></em></div></div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="landing-strip"><div class="landing-strip-inner"><div class="strip-item"><strong>One action</strong>Publish to every armed social channel.</div><div class="strip-item"><strong>Live-aware</strong>Pull Twitch game, title, viewers, and thumbnail.</div><div class="strip-item"><strong>Local-first</strong>No Uplink account or creator database.</div></div></section>
+    <section class="landing-strip"><div class="landing-strip-inner"><div class="strip-item"><strong>Launch together</strong>Social channels + your Discord community.</div><div class="strip-item"><strong>Community clips</strong>Your moments, whoever hit the clip button.</div><div class="strip-item"><strong>Keep creating</strong>Save ideas, draft videos, or fill your queue.</div></div></section>
 
     <section class="landing-section" id="how-it-works">
-      <div class="landing-section-head"><div class="eyebrow">The pre-stream ritual, compressed</div><h2>Less tab juggling. More actually going live.</h2><p>Use a saved loadout when the announcement is routine. Use Quick Compose when tonight’s stream has developed lore.</p></div>
-      <div class="feature-grid">
-        <article class="feature-card"><div class="feature-number">01 // ARM</div><h3>Choose your channels</h3><p>Pull your connected social channels into a single target grid and decide exactly where this signal goes.</p></article>
-        <article class="feature-card"><div class="feature-number">02 // LOAD</div><h3>Loadout or quick post</h3><p>Launch a reusable live-aware template or write a one-off post without leaving the deck.</p></article>
-        <article class="feature-card"><div class="feature-number">03 // DEPLOY</div><h3>Publish and engage</h3><p>Fire the post, then jump directly into supported live social posts from the transmission history.</p></article>
+      <div class="landing-section-head"><div class="eyebrow">One deck. The whole stream workflow.</div><h2>Your stream ends. Your content doesn’t.</h2><p>Start with a reusable announcement. Finish with a few great clips and something worth posting tomorrow.</p></div>
+      <div class="v5-feature-grid">
+        <article class="feature-card"><div class="feature-number">01 // GO LIVE</div><h3>One launch. Your people.</h3><p>Arm your Buffer channels and Discord webhook. Pull in your Twitch title, game, and thumbnail. Send one announcement with copy made for each destination.</p><div class="v5-mode-tags"><span>LIVE NOW</span><span>QUEUE</span><span>SCHEDULE</span><span>DRAFT</span></div></article>
+        <article class="feature-card"><div class="feature-number">02 // FIND THE MOMENTS</div><h3>Your chat already clipped it.</h3><p>Browse clips from your channel, including the ones your viewers made. Preview, sort, and select favorites while you’re live or when the stream is done.</p><div class="v5-mode-tags"><span>VIEWER CREDIT</span><span>LIVE REFRESH</span></div></article>
+        <article class="feature-card"><div class="feature-number">03 // KEEP IT GOING</div><h3>Good clip. Next post.</h3><p>Save the link and notes as a Buffer Idea, or connect Twitch to import the video into drafts or your queue. Select several moments and give each its own caption.</p><div class="v5-mode-tags"><span>IDEAS</span><span>VIDEO DRAFTS</span><span>QUEUE</span></div></article>
+      </div>
+      <div class="landing-clip-preview" aria-label="Example clip review workflow">
+        <div><div class="eyebrow">From “clip that” to “post that”</div><h3>Three moments. A head start on next week.</h3><p>Your community finds the highlights. You choose the ones worth sharing. Uplink takes care of the handoff to Buffer, with clear results for every clip and channel.</p><p class="v5-muted">Discord sends with Live now. Queue, schedule, and draft launch modes apply to your Buffer channels. Portrait imports use a version you’ve already made in Twitch.</p></div>
+        <div class="landing-clip-stack"><div class="landing-clip-item"><span class="landing-clip-art" aria-hidden="true">▶</span><div><strong>That absolutely counted as a strategy</strong><small>Clipped by a viewer · caption ready</small></div><span class="v5-pill sent">DRAFT</span></div><div class="landing-clip-item"><span class="landing-clip-art" aria-hidden="true">▶</span><div><strong>The comeback nobody ordered</strong><small>Clipped by you · keep for later</small></div><span class="v5-pill sent">IDEA</span></div><div class="landing-clip-item"><span class="landing-clip-art" aria-hidden="true">▶</span><div><strong>One more game. Famous last words.</strong><small>Your choice · your next post</small></div><span class="v5-pill sent">QUEUE</span></div></div>
       </div>
     </section>
 
     <section class="landing-section key-section" id="key-safety">
       <article class="key-warning"><div class="key-icon">KEY</div><div class="eyebrow" style="color:var(--live)">Credential safety</div><h3>Your Buffer key is basically a stream key for your social accounts.</h3><p>It can authorize publishing. That makes it powerful, useful, and absolutely not something to flash on-screen during a “just chatting” stream.</p></article>
-      <article class="key-details"><div class="eyebrow">What Uplink does with it</div><h2 style="font-size:47px">Keep control of the credential.</h2><p>Uplink stores the token in this browser’s local storage. Requests pass through the included stateless Netlify function to Buffer; Uplink does not require its own user account or database.</p><div class="key-list"><div><strong>Do not share it</strong><span>Never send it to collaborators, paste it into chat, or include it in a screenshot.</span></div><div><strong>Use a trusted deployment</strong><span>Deploy your own copy or inspect the included source before connecting.</span></div><div><strong>Rotate after exposure</strong><span>If the key appears on stream or in public code, revoke it and create a fresh one.</span></div></div></article>
+      <article class="key-details"><div class="eyebrow">What Uplink does with it</div><h2 style="font-size:47px">Keep control of the credential.</h2><p>Your Buffer key and Discord webhook stay in this browser and pass through Uplink’s server functions when you use them. Optional Twitch video import stores encrypted authorization on the server. Imported videos are hosted at public, unlisted URLs so Buffer can publish them later.</p><div class="key-list"><div><strong>Do not share it</strong><span>Never send it to collaborators, paste it into chat, or include it in a screenshot.</span></div><div><strong>Use a trusted deployment</strong><span>Deploy your own copy or inspect the included source before connecting.</span></div><div><strong>Rotate after exposure</strong><span>If the key appears on stream or in public code, revoke it and create a fresh one.</span></div></div></article>
     </section>
 
-    <section class="landing-section landing-final"><div class="eyebrow">Ready check</div><h2>Build the announcement deck your stream deserves.</h2><p>Connect Buffer, take the guided setup tour, and turn your next “going live” post into one move.</p><div class="hero-cta-row" style="justify-content:center"><button class="btn btn-primary" id="finalSetupBtn">Launch Uplink</button></div></section>
+    <section class="landing-section landing-final"><div class="eyebrow">Ready check</div><h2>Make the stream. Keep the moments.</h2><p>Connect Buffer, link your Twitch channel, and put your announcements and highlights in one place.</p><div class="hero-cta-row" style="justify-content:center"><button class="btn btn-primary" id="finalSetupBtn">Launch Uplink</button></div></section>
   </main>
-  <footer class="landing-footer"><span>A Nobody Creative experiment</span><span>Publishing powered by Buffer</span><span>Your keys stay local. Your signal goes everywhere else.</span></footer>
+    <section class="landing-section"><div class="landing-section-head"><div class="eyebrow">Before you initialize</div><h2>A few things to know.</h2></div><div class="landing-faq">
+      <details><summary>Do my viewers have to connect anything?</summary><p>No. Uplink retrieves published clips from your Twitch channel regardless of who created them. Link a public Twitch username to browse, preview, and save clip ideas.</p></details>
+      <details><summary>What needs a Twitch connection?</summary><p>Importing actual clip videos needs authorization from the broadcaster or an editor. Uplink keeps access and refresh tokens encrypted on the server and uses a secure browser cookie. You can disconnect in Systems.</p></details>
+      <details><summary>Does this publish clips automatically?</summary><p>You choose the clips, captions, and destinations. Video drafts stay unpublished until you schedule them. Add to Queue uses your Buffer posting schedule. There is no automatic highlight selection or background posting.</p></details>
+      <details><summary>What happens to imported videos?</summary><p>Videos are copied to stable public hosting so Buffer can fetch them when your post publishes. They are not automatically deleted after a week. The default Netlify video route supports imports up to 18 MB; deployments can enable Cloudinary for larger clips. Ideas always keep the original Twitch link.</p></details>
+    </div></section>
+  <footer class="landing-footer"><span>A Nobody Creative experiment</span><span>Publishing powered by Buffer</span><span>Your stream. Your moments. Your next post.</span></footer>
 </div>
 
 <!-- CONNECTION MODAL -->
@@ -449,6 +461,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
     <button class="tour-help" id="helpTourBtn" type="button" aria-label="Open guided setup">?</button>
     <nav class="tabs" aria-label="Primary navigation">
       <button class="tab-btn active" data-tab="console">Launch Deck</button>
+      <button class="tab-btn" data-tab="clips">Clips</button>
       <button class="tab-btn" data-tab="templates">Loadouts</button>
       <button class="tab-btn" data-tab="settings">Systems</button>
     </nav>
@@ -501,6 +514,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
           <section class="panel panel-pad" data-tour="channels">
             <div class="panel-head"><div class="panel-kicker">01 // Target channels</div><button class="link-btn" id="refreshChannels">Refresh network</button></div>
             <div id="channelRow" class="channel-grid"></div>
+            <div id="discordTargetRow"></div>
           </section>
 
           <section class="panel panel-pad" data-tour="signal">
@@ -534,6 +548,11 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
             <div class="shortcut"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> to transmit · <kbd>1–9</kbd> selects loadout</div>
           </section>
 
+          <section class="panel panel-pad v5-endstream">
+            <div class="panel-kicker">When the stream wraps</div><h3>End on a good signal.</h3><p class="v5-muted">Update your latest Discord announcement with a replay link, then pick your highlights.</p>
+            <label class="v5-field"><span>Replay URL (optional)</span><input type="url" id="replayUrl" placeholder="https://www.twitch.tv/videos/…"></label>
+            <div class="v5-row"><button class="btn btn-small" id="endStreamBtn" type="button">Update Discord</button><button class="btn btn-small" id="reviewClipsBtn" type="button">Review clips</button></div><div id="endStreamStatus" class="v5-status" role="status"></div>
+          </section>
           <section class="panel panel-pad" data-tour="history">
             <div class="panel-head"><div class="panel-kicker">Recent transmissions</div><button class="link-btn" id="clearHistoryBtn">Clear</button></div>
             <div id="historyList" class="history-list"></div>
@@ -542,6 +561,19 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
       </div>
     </section>
 
+    <!-- CLIPS INBOX -->
+    <section class="view" id="view-clips">
+      <div class="page-heading"><div><div class="eyebrow">Your community’s highlight reel</div><h1>Clip that. Keep it.</h1></div><p>Preview the moments, add your words, and send the good ones to Buffer.</p></div>
+      <section class="panel clips-auth"><div><strong id="clipsConnectionTitle">Browse first. Connect when you need video.</strong><p class="v5-muted" id="clipsConnectionNote">Public clips include moments you and your viewers created. A Twitch connection is only needed to import video.</p></div><a class="btn btn-small" id="clipsConnectBtn" href="/.netlify/functions/twitch-auth?action=start">Connect Twitch for video</a></section>
+      <div class="clips-toolbar"><div class="v5-row"><span class="v5-live-tag" id="clipsChannelLabel">TWITCH CLIPS</span><span class="v5-muted" id="clipsRefreshNote">Refreshes every 45 seconds while this tab is visible.</span></div><label class="v5-field"><span>Time window</span><select id="clipsWindow"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option></select></label><label class="v5-field"><span>Sort by</span><select id="clipsSort"><option value="newest">Newest first</option><option value="views">Most viewed</option></select></label></div>
+      <section class="clips-actions" aria-label="Selected clip actions"><div class="v5-row v5-spread"><div><h2 id="clipsSelectedCount">Choose your moments</h2><span class="v5-muted">Select up to 10 clips. Each gets its own caption below.</span></div><div class="v5-row"><button class="btn btn-small" id="clipsClearSelection" type="button">Clear selection</button><button class="btn btn-small" id="clipsRefreshBtn" type="button">Refresh clips</button></div></div>
+        <div class="clip-channel-list" id="clipChannelList" aria-label="Video post destinations"></div>
+        <div class="clips-action-row"><button class="btn" id="saveClipIdeasBtn" type="button" disabled>Save as Ideas</button><label class="v5-field"><span class="sr-only">Video shape</span><select id="clipOrientation"><option value="landscape">Landscape video</option><option value="portrait">Twitch portrait version</option></select></label><label class="v5-field"><span class="sr-only">Video delivery</span><select id="clipDelivery"><option value="draft">Save as drafts</option><option value="queue">Add to queue</option></select></label><button class="btn btn-primary" id="createClipDraftsBtn" type="button" disabled>Create video drafts</button></div>
+        <p class="v5-muted" id="clipActionNote">Ideas save the Twitch link and notes. Drafts attach the video and stay unpublished.</p><div class="v5-status" id="clipsActionStatus" role="status" aria-live="polite"></div>
+      </section>
+      <div class="clip-grid" id="clipsGrid" aria-busy="false"><div class="clips-empty"><h2>Your next posts are in here.</h2>Link a Twitch username in Systems to find your channel’s clips.<br><button class="btn btn-small" id="clipsOpenSettings" type="button" style="margin-top:15px">Link a channel</button></div></div>
+      <div class="clips-more"><button class="btn" id="clipsLoadMoreBtn" type="button" hidden>Load more clips</button></div>
+    </section>
     <!-- LOADOUTS -->
     <section class="view" id="view-templates">
       <div class="page-heading">
@@ -567,7 +599,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
       <div class="settings-grid">
         <section class="panel panel-pad settings-card" data-tour="systems">
           <div class="panel-head"><div class="panel-kicker">Twitch intelligence</div></div>
-          <p>Public stream data powers dynamic tokens and the live status panel. No streamer OAuth is required.</p>
+          <p>Link a public username for live data and your community’s clips. Connect Twitch below when you want to import actual video files.</p>
           <div class="key-input-row">
             <input type="text" id="twitchLoginInput" placeholder="your_twitch_username" autocomplete="off">
             <button class="btn btn-primary" id="saveTwitchBtn">Link</button>
@@ -575,6 +607,12 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
           <div class="mono" id="twitchSaveStatus" style="font-size:10px;color:var(--signal);margin-top:9px;min-height:15px"></div>
         </section>
 
+        <section class="panel panel-pad settings-card">
+          <div class="panel-head"><div class="panel-kicker">Twitch video connection</div></div><p id="twitchVideoStatus">Checking video connection…</p><p class="v5-muted">Authorize the broadcaster or an editor for the channel you import from. Tokens are encrypted on the server, separate from your public channel lookup.</p><div class="v5-row"><a class="btn" href="/.netlify/functions/twitch-auth?action=start" id="twitchVideoConnect">Connect Twitch</a><button class="btn btn-danger" id="twitchVideoDisconnect" type="button" hidden>Disconnect Twitch</button></div><div class="v5-status" id="twitchVideoMessage" role="status"></div>
+        </section>
+        <section class="panel panel-pad settings-card">
+          <div class="panel-head"><div class="panel-kicker">Discord announcements</div></div><p>Save a webhook from your Discord channel’s integrations, then arm Discord on the Launch Deck. Sends with Live now.</p><label class="v5-field"><span>Discord webhook URL</span><input type="password" id="discordWebhook" autocomplete="off" placeholder="https://discord.com/api/webhooks/…"></label><label class="v5-field"><span>Notification role ID (optional)</span><input type="text" inputmode="numeric" id="discordRole" placeholder="The role people opt into for live alerts"></label><label class="v5-field"><span>Discord announcement copy</span><textarea id="discordCopy" maxlength="1900" placeholder="Leave blank to use your active signal. Supports {{game}}, {{title}}, and {{link}}."></textarea></label><div class="v5-muted">Preview</div><div id="discordCopyPreview" class="v5-preview-copy"></div><div class="v5-row"><button class="btn btn-primary" id="saveDiscordBtn" type="button">Save Discord</button><button class="btn btn-danger" id="clearDiscordBtn" type="button">Remove webhook</button></div><div class="v5-status" id="discordSettingsStatus" role="status"></div>
+        </section>
         <section class="panel panel-pad settings-card">
           <div class="panel-head"><div class="panel-kicker">Primary stream link</div></div>
           <p>Save your destination once, then use <span class="mono" style="color:var(--signal-2)">{{link}}</span> inside any loadout.</p>
@@ -606,7 +644,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
     </section>
   </main>
 
-  <div class="footer-note">A Nobody Creative experiment // Your keys stay local. Your signal goes everywhere else.</div>
+  <div class="footer-note">A Nobody Creative experiment // Your stream. Your moments. Your next post.</div>
 </div>
 
 <!-- GUIDED SETUP -->
@@ -690,6 +728,10 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
   <div class="transmit-loading"><div class="loading-ring"></div><div class="loading-ring"></div><div class="loading-ring"></div><div class="transmit-loading-label" id="transmitLoadingLabel">Routing signal…</div></div>
 </div>
 
+<dialog class="clip-dialog" id="clipPreviewDialog" aria-labelledby="clipPreviewTitle"><div class="v5-row v5-spread"><h2 id="clipPreviewTitle">Clip preview</h2><button class="btn btn-small" id="closeClipPreview" type="button">Close</button></div><div id="clipPreviewFrame"></div><p class="v5-muted" id="clipPreviewCredit"></p></dialog>
 <script src="app.js"></script>
+<script src="v4.js"></script>
+<script src="v5.js"></script>
 </body>
 </html>
+
