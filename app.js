@@ -431,6 +431,7 @@ async function fetchChannels(key) {
 
   renderChannels();
   updateReadyHud();
+  document.dispatchEvent(new Event('uplink:channels'));
 }
 
 els.refreshChannels.addEventListener('click', async () => {
@@ -1628,21 +1629,29 @@ els.confirmToggle.addEventListener('click', () => {
 els.replayTourBtn.addEventListener('click', () => startTour(0));
 els.helpTourBtn.addEventListener('click', () => startTour(0));
 
-els.disconnectBtn.addEventListener('click', () => {
+els.disconnectBtn.addEventListener('click', async () => {
   if (!window.confirm('Disconnect Buffer and wipe all Uplink data stored in this browser?')) return;
-  Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+  try { await window.UplinkV5?.disconnectAll(); }
+  catch (error) {
+    els.sendLog.textContent = `Could not disconnect Twitch: ${error.message}`;
+    const message = document.getElementById('twitchVideoMessage');
+    if (message) { message.textContent = els.sendLog.textContent; message.classList.add('error'); }
+    return;
+  }
+  Object.keys(localStorage).filter(key => key.startsWith('uplink_')).forEach(key => localStorage.removeItem(key));
   window.location.reload();
 });
 
 /* ---------- guided onboarding ---------- */
 
 const TOUR_STEPS = [
-  { title: 'Welcome to the launch deck', copy: 'Uplink has two jobs: make your pre-stream announcement fast, and keep every publishing decision visible before you press the big red button.', tab: 'console', selector: '[data-tour="stream"]' },
+  { title: 'Welcome to the launch deck', copy: 'Announce your stream, then turn your community’s clips into your next posts. Every destination stays visible before you transmit.', tab: 'console', selector: '[data-tour="stream"]' },
   { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens.', tab: 'settings', selector: '[data-tour="systems"]' },
   { title: 'Arm the target channels', copy: 'Back on the Launch Deck, choose exactly which connected social channels receive this post. Nothing fires at a channel unless its switch is armed.', tab: 'console', selector: '[data-tour="channels"]' },
   { title: 'Choose how to write', copy: 'Saved Loadout repeats a proven announcement. Quick Compose gives you a clean field for a one-off post. Both support live Twitch tokens.', tab: 'console', selector: '[data-tour="signal"]' },
   { title: 'Run the pre-flight check', copy: 'The launch control stays locked until at least one channel and one complete signal are ready. Command or Control + Enter also transmits.', tab: 'console', selector: '[data-tour="transmit"]' },
   { title: 'Jump back into the conversation', copy: 'Recent transmissions keep direct social permalinks when Buffer exposes them. Open a post from here and start interacting while the stream warms up.', tab: 'console', selector: '[data-tour="history"]' },
+  { title: 'Keep the highlights going', copy: 'Clips includes the moments you and your viewers captured. Preview a few, add captions, and save links as Ideas. Connect Twitch in Systems to import actual videos into Buffer drafts or queues.', tab: 'clips', selector: '.clips-actions' },
 ];
 
 function maybeStartOnboarding() {
@@ -1728,12 +1737,16 @@ document.querySelectorAll('.tab-btn').forEach((button) => {
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
   document.querySelectorAll('.view').forEach((view) => view.classList.toggle('active', view.id === `view-${tab}`));
+  document.dispatchEvent(new CustomEvent('uplink:tab', { detail: tab }));
   window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
 document.addEventListener('keydown', (event) => {
   const tag = document.activeElement?.tagName?.toLowerCase();
   const typing = ['input', 'textarea', 'select'].includes(tag) || document.activeElement?.isContentEditable;
+  // Clip review has its own explicit actions; launch shortcuts must not publish
+  // announcements from this tab or while a Twitch preview is open.
+  if (document.getElementById('view-clips')?.classList.contains('active') || document.getElementById('clipPreviewDialog')?.open) return;
 
   if (event.key === 'Escape' && state.tourActive) {
     finishTour(true);
@@ -1841,3 +1854,4 @@ function playTransmitFailAnimation() {
 }
 
 boot();
+
