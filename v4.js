@@ -323,7 +323,15 @@
     return resolveTemplateCopy({ ...template, copy: raw });
   }
 
+  function launchTargets() {
+    const targets = state.channels.filter(channel => state.selectedChannelIds.has(channel.id));
+    const discord = window.UplinkV5?.getDiscordTarget();
+    if (discord) targets.push(discord);
+    return targets;
+  }
+
   async function v4PostOne(key, channel, template, allowUrlRetry = true) {
+    if (channel.service === 'discord') return window.UplinkV5.sendDiscord(template, channel.discordConfig);
     const urlSelection = state.postUrlField ? ` ${state.postUrlField}` : '';
     const mutation = `mutation CreatePost($input:CreatePostInput!){createPost(input:$input){__typename ... on PostActionSuccess{post{id dueAt text channelId status${urlSelection}}} ... on MutationError{message}}}`;
     const config = MODE_CONFIG[launchMode()];
@@ -364,23 +372,30 @@
     const mode = launchMode();
     const config = MODE_CONFIG[mode];
     const signal = currentSignal();
-    const hasChannels = state.selectedChannelIds.size > 0;
+    const targetCount = launchTargets().length;
+    const hasChannels = targetCount > 0;
     const hasSignal = Boolean(signal && resolveTemplateCopy(signal));
     const scheduleOkay = mode !== 'schedule' || scheduleValid();
     els.sendBtn.disabled = !(hasChannels && hasSignal && scheduleOkay) || state.sending;
+    els.selectedCount.textContent = `${targetCount} destination${targetCount === 1 ? '' : 's'}`;
+    els.channelReadyStat.classList.toggle('ready', hasChannels);
+    const readyCount = Number(hasChannels) + Number(hasSignal);
+    els.preflightText.textContent = `${readyCount} / 2 ready`;
+    els.preflightFill.style.width = `${readyCount * 50}%`;
+    window.UplinkV5?.renderDiscordTarget();
 
     if (!state.sending && hasChannels && hasSignal) {
       els.sendBtnMain.textContent = config.button;
       els.sendBtnSub.textContent = mode === 'schedule' && scheduleValid()
         ? scheduleDate().toLocaleString()
-        : `${state.selectedChannelIds.size} target${state.selectedChannelIds.size === 1 ? '' : 's'} · ${config.sub}`;
+        : `${targetCount} target${targetCount === 1 ? '' : 's'} · ${config.sub}`;
     }
   };
 
   sendUplink = async function v4SendUplink(template) {
     if (state.sending || !template) return;
     const key = localStorage.getItem(STORAGE.key);
-    const targets = state.channels.filter((channel) => state.selectedChannelIds.has(channel.id));
+    const targets = launchTargets();
     if (!key || !targets.length) return;
     if (launchMode() === 'schedule' && !scheduleValid()) {
       els.sendLog.textContent = 'Choose a future launch time before scheduling this signal.';
@@ -402,12 +417,12 @@
     playTone('launch');
 
     try {
-      const allRawCopy = [template.copy, ...targets.map((channel) => getVariant(currentSignalKey(), normalizeService(channel.service || channel.name)))].join('\n');
+      const allRawCopy = [template.copy, window.UplinkV5?.discordCopy() || '', ...targets.map((channel) => getVariant(currentSignalKey(), normalizeService(channel.service || channel.name)))].join('\n');
       const needsLiveData = /\{\{\s*(game|title|viewers)\s*\}\}/i.test(allRawCopy);
       if (needsLiveData && localStorage.getItem(STORAGE.twitchLogin)) await checkTwitchLive({ updateUI: true });
 
       if (!resolveTemplateCopy(template)) throw new Error('This signal resolves to empty copy. Add text or configure its dynamic tokens.');
-      await discoverPostUrlField(key);
+      if (targets.some(channel => channel.service !== 'discord')) await discoverPostUrlField(key);
 
       const results = await Promise.allSettled(targets.map((channel) => v4PostOne(key, channel, template)));
       const okCount = results.filter((result) => result.status === 'fulfilled').length;
@@ -416,7 +431,7 @@
       const firstError = failures[0]?.reason;
       const anyExpired = failures.some((result) => isAuthError(result.reason));
 
-      if (anyExpired) {
+      if (anyExpired && okCount === 0) {
         els.sendLog.textContent = readableError(firstError, 'Buffer rejected the token.');
         playTransmitFailAnimation();
         playTone('fail');
@@ -683,3 +698,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootV4, { once: true });
   else bootV4();
 })();
+

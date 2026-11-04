@@ -2,3 +2,10 @@
   command = "node scripts/inject-v4.js"
   publish = "."
   functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+

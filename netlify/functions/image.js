@@ -2,9 +2,10 @@
 // Serves an uploaded image back out of Netlify Blobs at a stable
 // public URL so Buffer's API can fetch it.
 
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 
 exports.handler = async function (event) {
+  if (event.blobs) connectLambda(event);
   const key = event.queryStringParameters?.key;
   if (!key) return { statusCode: 400, body: 'Missing key' };
 
@@ -30,3 +31,4 @@ exports.handler = async function (event) {
     return { statusCode: 502, body: 'Could not load image: ' + err.message };
   }
 };
+

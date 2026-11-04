@@ -9,7 +9,7 @@
 // where dataUrl is a base64 data URL (e.g. "data:image/png;base64,...")
 // from a <input type="file"> read via FileReader in the browser.
 
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -24,6 +24,7 @@ function corsHeaders() {
 }
 
 exports.handler = async function (event) {
+  if (event.blobs) connectLambda(event);
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: corsHeaders(), body: '' };
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: corsHeaders(), body: JSON.stringify({ error: 'Method not allowed' }) };
@@ -68,3 +69,4 @@ exports.handler = async function (event) {
     return { statusCode: 502, headers: corsHeaders(), body: JSON.stringify({ error: 'Upload failed: ' + err.message }) };
   }
 };
+
