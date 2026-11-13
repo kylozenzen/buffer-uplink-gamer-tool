@@ -2,6 +2,42 @@
 
 Announce the stream, find the moments your community clipped, and send the good ones to Buffer.
 
+## Why Uplink exists
+
+**Streamers are small businesses, and most of them are invisible.** Each stream has two marketing moments: telling people you're live, and turning what happened into posts afterward. Uplink handles both, using the Buffer account the streamer already has.
+
+### The audience is huge
+
+| Signal | Number | Source |
+| --- | --- | --- |
+| Live-stream watch time, all platforms, one quarter | **31.7 billion hours** (Q3 2026) | [Streams Charts](https://streamscharts.com/news/q3-2026-global-livestreaming-landscape) |
+| Twitch watch time, same quarter | **4.51 billion hours**, up 4% on Q2 | [Streams Charts](https://streamscharts.com/news/q3-2026-global-livestreaming-landscape) |
+| Unique channels that broadcast on Twitch | **7.94 million** in Q2 2026 | [Streamlabs × Stream Hatchet](https://streamlabs.com/content-hub/post/streamlabs-and-hatchet-q2-2026-live-streaming-report) |
+| Channels on Kick / YouTube Gaming | **808K** (up 45.5% YoY) / **878K** in Q2 2026 | [Streamlabs × Stream Hatchet](https://streamlabs.com/content-hub/post/streamlabs-and-hatchet-q2-2026-live-streaming-report) |
+| New streamers who started on Twitch in 2025 | **9 million** | [Twitch Recap 2025 via Tubefilter](https://www.tubefilter.com/2025/12/03/twitch-year-end-recap-2025-900-million-hours-watch-time/) |
+| Chat messages sent on Twitch in 2025 | **45 billion** | [Twitch Recap 2025 via Tubefilter](https://www.tubefilter.com/2025/12/03/twitch-year-end-recap-2025-900-million-hours-watch-time/) |
+
+### The problem: lots of streamers, very few viewers each
+
+- Twitch averages about **23 viewers per channel** (Q2 2026), compared with about 308 on YouTube Live ([Streamlabs × Stream Hatchet](https://streamlabs.com/content-hub/post/streamlabs-and-hatchet-q2-2026-live-streaming-report)). That's an average, so most channels see far fewer.
+- Streamers can't rely on the platform to send viewers. They grow off-platform, through go-live posts, Discord, and short clips.
+- Viewers already make that content. Every Twitch clip is a moment someone found worth saving. Most clips sit unused on the channel.
+
+### Where Uplink fits
+
+| Tool | What it does | What's missing for a solo streamer |
+| --- | --- | --- |
+| Zapier / IFTTT "Twitch live → Buffer" templates ([Zapier](https://zapier.com/apps/buffer/integrations/twitch/1662029/add-new-twitch-live-streams-to-buffer-queues-effortlessly-with-this-workflow), [IFTTT](https://ifttt.com/connect/buffer/twitch)) | Automatically posts stream details when you go live | Same post every time with no review, needs a separate automation account, does nothing with clips |
+| AI clippers like [Eklipse](https://eklipse.gg/compare/eklipse-vs-crossclip) | AI finds highlights in the VOD and cuts vertical shorts | Paid to clip (about $15–25/mo), publishes from its own app instead of your Buffer queue, and doesn't credit the viewers who clipped |
+| [Crossclip](https://eklipse.gg/compare/eklipse-vs-crossclip) | Turns a clip you supply into a vertical video | Export only, no posting or scheduling |
+| **Uplink** | Go-live posts with live game/title/viewer tokens to every Buffer channel + Discord, then community clips → Buffer Ideas, drafts or queue | Built on the streamer's existing Buffer account. Free. You review everything first, and viewers get credit for their clips |
+
+The existing Zapier and IFTTT templates show that streamers already try to connect Twitch to Buffer. We didn't find a tool that combines the go-live announcement and the clip handoff in one place on top of Buffer.
+
+### Why it matters for Buffer
+
+Uplink brings Buffer to a large group of creators who already think in terms of scheduled posts, and gives them a reason to post every time they stream. Every announcement and clip goes through the streamer's own Buffer queue.
+
 ## What is new
 
 - **Discord launch target:** a separate webhook destination alongside Buffer channels. Custom Discord copy supports the same live Twitch tokens. Only a deliberately selected role can be pinged; `@everyone` and other mentions are suppressed.
