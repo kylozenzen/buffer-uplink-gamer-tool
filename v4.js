@@ -141,7 +141,7 @@
     wrap.innerHTML = `
       <div class="v4-tools-head">
         <div class="v4-tools-copy">
-          <strong>Native signals</strong>
+          <strong>Per-channel versions</strong>
           <span>Keep the master copy or tune a version for each armed platform.</span>
         </div>
         <button class="btn btn-small v4-variant-toggle" id="v4VariantToggle" type="button" aria-expanded="false">
@@ -551,6 +551,7 @@
     const body = document.getElementById('v4MissionBody');
     if (!body) return;
     const mission = latestMission();
+    document.getElementById('v4MissionPanel')?.classList.toggle('is-empty', !mission);
     if (!mission) {
       body.innerHTML = '<div class="v4-mission-empty">Complete a transmission and Uplink will turn its Buffer post IDs into a compact performance report.</div>';
       return;

@@ -164,7 +164,8 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 
 /* tour */
 .tour-help{width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:#0a1019;color:var(--signal);font:700 13px/1 'JetBrains Mono',monospace}.tour-help:hover{border-color:var(--signal)}
-.tour-backdrop{display:none;position:fixed;inset:0;z-index:500;background:rgba(2,5,9,.72);backdrop-filter:blur(3px)}.tour-backdrop.show{display:block}.tour-spotlight{position:fixed;z-index:501;border:2px solid var(--signal);border-radius:17px;box-shadow:0 0 0 9999px rgba(2,5,9,.72),0 0 32px rgba(116,246,212,.38);pointer-events:none;transition:all .28s ease;opacity:0}.tour-spotlight.active{opacity:1}.tour-card{position:fixed;z-index:502;width:min(390px,calc(100% - 28px));background:linear-gradient(145deg,#172232,#0c121c);border:1px solid var(--line-hot);border-radius:17px;box-shadow:0 28px 90px rgba(0,0,0,.62);padding:22px;left:50%;bottom:24px;transform:translateX(-50%)}.tour-step{color:var(--signal);font:700 9px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.14em}.tour-card h3{font:700 28px/1 'Rajdhani',sans-serif;text-transform:uppercase;margin:11px 0 9px}.tour-card p{color:#b7c2cf;font-size:13px}.tour-actions{display:flex;justify-content:space-between;align-items:center;gap:9px;margin-top:20px}.tour-actions-left,.tour-actions-right{display:flex;gap:7px}.tour-dots{display:flex;gap:5px;margin-top:16px}.tour-dots i{width:20px;height:3px;border-radius:8px;background:#334157}.tour-dots i.active{background:var(--signal)}.tour-target-pulse{animation:targetPulse 1.4s ease-in-out infinite}@keyframes targetPulse{50%{filter:brightness(1.18)}}
+.tour-backdrop{display:none;position:fixed;inset:0;z-index:500;background:rgba(2,5,9,.72);backdrop-filter:blur(3px)}.tour-backdrop.show{display:block}
+.tour-backdrop.spotlit{background:transparent;backdrop-filter:none}.tour-spotlight{position:fixed;z-index:501;border:2px solid var(--signal);border-radius:17px;box-shadow:0 0 0 9999px rgba(2,5,9,.72),0 0 32px rgba(116,246,212,.38);pointer-events:none;transition:all .28s ease;opacity:0}.tour-spotlight.active{opacity:1}.tour-card{position:fixed;z-index:502;width:min(390px,calc(100% - 28px));background:linear-gradient(145deg,#172232,#0c121c);border:1px solid var(--line-hot);border-radius:17px;box-shadow:0 28px 90px rgba(0,0,0,.62);padding:22px;left:50%;bottom:24px;transform:translateX(-50%)}.tour-step{color:var(--signal);font:700 9px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.14em}.tour-card h3{font:700 28px/1 'Rajdhani',sans-serif;text-transform:uppercase;margin:11px 0 9px}.tour-card p{color:#b7c2cf;font-size:13px}.tour-actions{display:flex;justify-content:space-between;align-items:center;gap:9px;margin-top:20px}.tour-actions-left,.tour-actions-right{display:flex;gap:7px}.tour-dots{display:flex;gap:5px;margin-top:16px}.tour-dots i{width:20px;height:3px;border-radius:8px;background:#334157}.tour-dots i.active{background:var(--signal)}.tour-target-pulse{animation:targetPulse 1.4s ease-in-out infinite}@keyframes targetPulse{50%{filter:brightness(1.18)}}
 
 /* setup */
 .setup-stage{min-height:100vh;display:grid;place-items:center;padding:26px}
@@ -230,6 +231,8 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .landing-strip{background:rgba(11,17,26,.78);backdrop-filter:blur(6px)}
 @media (max-width:640px){.demo-button{font-size:clamp(14px,4.4vw,19px);letter-spacing:.05em;text-indent:.05em;height:72px}.ping{opacity:.75}.ping:nth-of-type(3n){display:none}.ping::before,.ping::after{animation-name:pingRingSm}.orb{filter:blur(26px);width:calc(var(--s) * .62);height:calc(var(--s) * .62);margin:calc(var(--s) * -.31) 0 0 calc(var(--s) * -.31)}}
 @media (prefers-reduced-motion:reduce){.orb,.ping,.ping::before,.ping::after{animation:none}.ping::before,.ping::after{display:none}}
+body.no-twitch .twitch-only{display:none!important}
+.v4-mission-panel.is-empty{display:none}
 .sample-banner{display:flex;align-items:center;gap:12px;margin:0 0 18px;padding:11px 14px;border:1px solid rgba(255,200,87,.35);border-radius:12px;background:rgba(255,200,87,.07);color:var(--ink);font-size:13px;line-height:1.45}
 .sample-banner[hidden]{display:none}
 .sample-banner span:nth-child(2){flex:1}
@@ -408,7 +411,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
   .top-status{display:none}.console-grid,.settings-grid{grid-template-columns:1fr}.side-stack{grid-template-columns:1fr 1fr}.stream-shell{grid-template-columns:190px 1fr}.setup-card{grid-template-columns:1fr}.setup-visual{min-height:380px}.setup-form{padding:34px}.ready-grid{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:650px){
-  .landing-nav{width:min(100% - 22px,1180px);padding:14px 0}.landing-link{display:none}.landing-hero{width:min(100% - 22px,1180px);padding:42px 0 58px;gap:34px}.landing-copy h1{font-size:61px}.landing-copy>p{font-size:15px}.landing-deck{min-height:520px;padding:9px}.demo-grid{grid-template-columns:1fr}.demo-side{grid-template-columns:1fr 1fr}.demo-stream{height:175px}.landing-strip-inner{width:100%;grid-template-columns:1fr}.strip-item{border-right:0;border-bottom:1px solid var(--line)}.landing-section{width:min(100% - 22px,1180px);padding:64px 0}.feature-grid{grid-template-columns:1fr}.key-warning,.key-details{padding:24px}.landing-footer{width:min(100% - 22px,1180px);flex-direction:column;gap:8px}.setup-close{right:14px;top:12px}.tour-card{bottom:12px}.tour-spotlight{display:none}
+  .landing-nav{width:min(100% - 22px,1180px);padding:14px 0}.landing-link{display:none}.landing-hero{width:min(100% - 22px,1180px);padding:42px 0 58px;gap:34px}.landing-copy h1{font-size:61px}.landing-copy>p{font-size:15px}.landing-deck{min-height:520px;padding:9px}.demo-grid{grid-template-columns:1fr}.demo-side{grid-template-columns:1fr 1fr}.demo-stream{height:175px}.landing-strip-inner{width:100%;grid-template-columns:1fr}.strip-item{border-right:0;border-bottom:1px solid var(--line)}.landing-section{width:min(100% - 22px,1180px);padding:64px 0}.feature-grid{grid-template-columns:1fr}.key-warning,.key-details{padding:24px}.landing-footer{width:min(100% - 22px,1180px);flex-direction:column;gap:8px}.setup-close{right:14px;top:12px}.tour-card{bottom:12px}
   .app-shell{width:min(100% - 22px,1180px);padding-top:10px}.topbar{top:7px;min-height:62px;padding:9px 10px;margin-bottom:20px}.brand-copy span{display:none}.brand-mark{width:34px;height:34px}.tabs{position:fixed;z-index:80;left:10px;right:10px;bottom:10px;justify-content:space-around;padding:6px;box-shadow:0 15px 55px rgba(0,0,0,.6);background:rgba(10,15,24,.94);backdrop-filter:blur(18px)}.tab-btn{flex:1;padding:11px 6px}.page-heading{align-items:flex-start;flex-direction:column}.page-heading h1{font-size:42px}.page-heading p{font-size:13px}.stream-shell{grid-template-columns:1fr}.stream-art{min-height:185px}.stream-content{padding:20px}.side-stack{grid-template-columns:1fr}.channel-grid{grid-template-columns:1fr 1fr}.template-picker{display:flex;overflow:auto;scroll-snap-type:x mandatory;padding-bottom:5px}.template-chip{min-width:155px;scroll-snap-align:start}.template-preview{grid-template-columns:72px 1fr}.setup-stage{padding:12px}.setup-visual{min-height:330px;padding:28px}.setup-form{padding:28px}.key-input-row{flex-direction:column}.key-input-row .btn{min-height:44px}.modal-grid{grid-template-columns:1fr}.modal-grid .wide{grid-column:auto}.photo-row{grid-template-columns:1fr}.photo-preview{height:180px}.ready-grid{grid-template-columns:1fr 1fr}.footer-note{padding-bottom:60px}
 }
 @media(max-width:430px){.channel-grid{grid-template-columns:1fr}.ready-stat{padding:13px}.stream-content h2{font-size:24px}.panel-pad{padding:18px}.tpl-grid{grid-template-columns:1fr}}
@@ -471,7 +474,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 
     <section class="landing-section key-section" id="key-safety">
       <article class="key-warning"><div class="key-icon">OK</div><div class="eyebrow" style="color:var(--signal)">Built for trust</div><h3>Your Buffer stays yours.</h3><p>Uplink asks Buffer for two things: to read your channels and to create posts. You approve that on Buffer’s own sign-in screen, and you can undo it any time.</p></article>
-      <article class="key-details"><div class="eyebrow">What Uplink does with it</div><h2 style="font-size:47px">Nothing posts by surprise.</h2><p>Your Buffer sign-in and Discord webhook stay in this browser and pass through Uplink’s server functions only when you send something. Optional Twitch video import stores encrypted authorization on the server. Imported videos are hosted at public, unlisted URLs so Buffer can publish them later.</p><div class="key-list"><div><strong>Drafts by default</strong><span>New decks start in Draft mode. Live now asks before the first post goes out.</span></div><div><strong>You pick every target</strong><span>Each channel has its own switch. Nothing is sent to a channel you did not arm.</span></div><div><strong>Disconnect anytime</strong><span>Systems wipes your Buffer sign-in and every Uplink setting from this browser.</span></div></div></article>
+      <article class="key-details"><div class="eyebrow">What Uplink does with it</div><h2 style="font-size:47px">Nothing posts by surprise.</h2><p>Your Buffer sign-in and Discord webhook stay in this browser and pass through Uplink’s server functions only when you send something. Optional Twitch video import stores encrypted authorization on the server. Imported videos are hosted at public, unlisted URLs so Buffer can publish them later.</p><div class="key-list"><div><strong>Drafts by default</strong><span>New decks start in Draft mode. Live now asks before the first post goes out.</span></div><div><strong>You pick every target</strong><span>Each channel has its own switch. Nothing is sent to a channel you did not arm.</span></div><div><strong>Disconnect anytime</strong><span>Settings wipes your Buffer sign-in and every Uplink setting from this browser.</span></div></div></article>
     </section>
 
     <section class="landing-section landing-final"><div class="eyebrow">Ready check</div><h2>Make the stream. Keep the moments.</h2><p>Sign in with Buffer, link your Twitch channel (or try the sample stream), and put your announcements and highlights in one place.</p><div class="hero-cta-row" style="justify-content:center"><button class="btn btn-primary" id="finalSetupBtn">Launch Uplink</button></div></section>
@@ -479,7 +482,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
     <section class="landing-section"><div class="landing-section-head"><div class="eyebrow">Before you sign in</div><h2>A few things to know.</h2></div><div class="landing-faq">
       <details><summary>I’m not live right now. Can I still try it?</summary><p>Yes. After you sign in, choose Try a sample stream on the Launch Deck. Uplink fills in a made-up live session and a few community clips so you can build an announcement and save clip Ideas. Your Buffer channels stay real, and new decks start in Draft, so you can review everything in Buffer before anything posts.</p></details>
       <details><summary>Do my viewers have to connect anything?</summary><p>No. Uplink retrieves published clips from your Twitch channel regardless of who created them. Link a public Twitch username to browse, preview, and save clip ideas.</p></details>
-      <details><summary>What needs a Twitch connection?</summary><p>Importing actual clip videos needs authorization from the broadcaster or an editor. Uplink keeps access and refresh tokens encrypted on the server and uses a secure browser cookie. You can disconnect in Systems.</p></details>
+      <details><summary>What needs a Twitch connection?</summary><p>Importing actual clip videos needs authorization from the broadcaster or an editor. Uplink keeps access and refresh tokens encrypted on the server and uses a secure browser cookie. You can disconnect in Settings.</p></details>
       <details><summary>Does this publish clips automatically?</summary><p>You choose the clips, captions, and destinations. Video drafts stay unpublished until you schedule them. Add to Queue uses your Buffer posting schedule. There is no automatic highlight selection or background posting.</p></details>
       <details><summary>What happens to imported videos?</summary><p>Videos are copied to stable public hosting so Buffer can fetch them when your post publishes. They are not automatically deleted after a week. The default Netlify video route supports imports up to 18 MB; deployments can enable Cloudinary for larger clips. Ideas always keep the original Twitch link.</p></details>
     </div></section>
@@ -523,7 +526,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
       <button class="tab-btn active" data-tab="console">Launch Deck</button>
       <button class="tab-btn" data-tab="clips">Clips</button>
       <button class="tab-btn" data-tab="templates">Loadouts</button>
-      <button class="tab-btn" data-tab="settings">Systems</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
     </nav>
     <div class="top-status">
       <div class="status-pill"><span class="status-dot"></span>Buffer linked</div>
@@ -541,7 +544,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
     <section class="view active" id="view-console">
       <div class="page-heading">
         <div><div class="eyebrow">Mission control</div><h1>Launch Deck</h1></div>
-        <p>Select target channels, load or compose a signal, then transmit.</p>
+        <p>Pick where it goes, write the post, then send it to Buffer.</p>
       </div>
 
       <div class="console-grid">
@@ -555,36 +558,36 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
               </div>
               <div class="stream-content">
                 <div class="eyebrow" id="streamStatusLabel">No Twitch channel linked</div>
-                <h2 id="streamGame">Connect your channel for live intelligence</h2>
-                <p class="stream-title" id="streamTitle">Uplink can pull your current game, title, viewer count, and live thumbnail into the deck.</p>
-                <div class="stream-meta">
+                <h2 id="streamGame">Link your Twitch channel</h2>
+                <p class="stream-title" id="streamTitle">Uplink fills your posts with your live game, title and thumbnail. No channel handy? Try the sample stream.</p>
+                <div class="stream-meta twitch-only">
                   <span class="meta-chip">Viewers <strong id="streamViewers">—</strong></span>
                   <span class="meta-chip">Started <strong id="streamStarted">—</strong></span>
                   <span class="meta-chip">Signal <strong id="streamSignal">Offline</strong></span>
                 </div>
                 <div class="stream-actions">
-                  <button class="btn btn-small" id="streamRefreshBtn">Refresh Twitch</button>
-                  <button class="btn btn-small btn-ghost" id="openSystemsBtn">Configure channel</button>
+                  <button class="btn btn-small twitch-only" id="streamRefreshBtn">Refresh Twitch</button>
+                  <button class="btn btn-small btn-ghost" id="openSystemsBtn">Link Twitch channel</button>
                   <button class="btn btn-small btn-primary" id="sampleStreamBtn" type="button">Try a sample stream</button>
                 </div>
               </div>
             </div>
             <div class="ready-grid">
-              <div class="ready-stat" id="channelReadyStat"><span>Targets armed</span><strong id="selectedCount">0 channels</strong></div>
-              <div class="ready-stat" id="templateReadyStat"><span>Loadout</span><strong id="templateStatus">None selected</strong></div>
-              <div class="ready-stat" id="mediaReadyStat"><span>Visual</span><strong id="mediaStatus">Text only</strong></div>
-              <div class="ready-stat"><span>Signal length</span><strong id="charCount">0 chars</strong></div>
+              <div class="ready-stat" id="channelReadyStat"><span>Channels</span><strong id="selectedCount">0 channels</strong></div>
+              <div class="ready-stat" id="templateReadyStat"><span>Post</span><strong id="templateStatus">None selected</strong></div>
+              <div class="ready-stat" id="mediaReadyStat"><span>Image</span><strong id="mediaStatus">Text only</strong></div>
+              <div class="ready-stat"><span>Length</span><strong id="charCount">0 chars</strong></div>
             </div>
           </section>
 
           <section class="panel panel-pad" data-tour="channels">
-            <div class="panel-head"><div class="panel-kicker">01 // Target channels</div><button class="link-btn" id="refreshChannels">Refresh network</button></div>
+            <div class="panel-head"><div class="panel-kicker">01 // Where it goes</div><button class="link-btn" id="refreshChannels">Refresh channels</button></div>
             <div id="channelRow" class="channel-grid"></div>
             <div id="discordTargetRow"></div>
           </section>
 
           <section class="panel panel-pad" data-tour="signal">
-            <div class="panel-head"><div class="panel-kicker">02 // Build signal</div><button class="link-btn" id="jumpToTemplatesBtn">Manage loadouts</button></div>
+            <div class="panel-head"><div class="panel-kicker">02 // Write the post</div><button class="link-btn" id="jumpToTemplatesBtn">Manage loadouts</button></div>
             <div class="compose-switch" aria-label="Signal source">
               <button class="compose-mode-btn active" data-compose-mode="loadout" type="button">Saved loadout</button>
               <button class="compose-mode-btn" data-compose-mode="manual" type="button">Quick compose</button>
@@ -603,7 +606,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 
         <aside class="side-stack">
           <section class="panel send-panel" data-tour="transmit">
-            <div class="preflight-label"><span>03 // Pre-flight</span><span id="preflightText">0 / 2 ready</span></div>
+            <div class="preflight-label"><span>03 // Send</span><span id="preflightText">0 / 2 ready</span></div>
             <div class="preflight-track"><div class="preflight-fill" id="preflightFill"></div></div>
             <button class="transmit-btn" id="sendBtn" disabled>
               <span class="main" id="sendBtnMain">Transmit Uplink</span>
@@ -637,7 +640,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
         <div class="clips-action-row"><button class="btn" id="saveClipIdeasBtn" type="button" disabled>Save as Ideas</button><label class="v5-field"><span class="sr-only">Video shape</span><select id="clipOrientation"><option value="landscape">Landscape video</option><option value="portrait">Twitch portrait version</option></select></label><label class="v5-field"><span class="sr-only">Video delivery</span><select id="clipDelivery"><option value="draft">Save as drafts</option><option value="queue">Add to queue</option></select></label><button class="btn btn-primary" id="createClipDraftsBtn" type="button" disabled>Create video drafts</button></div>
         <p class="v5-muted" id="clipActionNote">Ideas save the Twitch link and notes. Drafts attach the video and stay unpublished.</p><div class="v5-status" id="clipsActionStatus" role="status" aria-live="polite"></div>
       </section>
-      <div class="clip-grid" id="clipsGrid" aria-busy="false"><div class="clips-empty"><h2>Your next posts are in here.</h2>Link a Twitch username in Systems to find your channel’s clips.<br><button class="btn btn-small" id="clipsOpenSettings" type="button" style="margin-top:15px">Link a channel</button> <button class="btn btn-small btn-primary" data-sample-start type="button" style="margin-top:15px">Try sample clips</button></div></div>
+      <div class="clip-grid" id="clipsGrid" aria-busy="false"><div class="clips-empty"><h2>Your next posts are in here.</h2>Link a Twitch username in Settings to find your channel’s clips.<br><button class="btn btn-small" id="clipsOpenSettings" type="button" style="margin-top:15px">Link a channel</button> <button class="btn btn-small btn-primary" data-sample-start type="button" style="margin-top:15px">Try sample clips</button></div></div>
       <div class="clips-more"><button class="btn" id="clipsLoadMoreBtn" type="button" hidden>Load more clips</button></div>
     </section>
     <!-- LOADOUTS -->
@@ -659,13 +662,13 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
     <!-- SYSTEMS -->
     <section class="view" id="view-settings">
       <div class="page-heading">
-        <div><div class="eyebrow">Connections + preferences</div><h1>Systems check.</h1></div>
+        <div><div class="eyebrow">Connections + preferences</div><h1>Settings.</h1></div>
         <p>Configure the live data and launch behavior behind your deck.</p>
       </div>
       <div class="settings-grid">
         <section class="panel panel-pad settings-card" data-tour="systems">
-          <div class="panel-head"><div class="panel-kicker">Twitch intelligence</div></div>
-          <p>Link a public username for live data and your community’s clips. Connect Twitch below when you want to import actual video files.</p>
+          <div class="panel-head"><div class="panel-kicker">Twitch channel</div></div>
+          <p>Type your public Twitch username. Uplink uses it for your live game, title and thumbnail, and to find your community’s clips. No login needed.</p>
           <div class="key-input-row">
             <input type="text" id="twitchLoginInput" placeholder="your_twitch_username" autocomplete="off">
             <button class="btn btn-primary" id="saveTwitchBtn">Link</button>
@@ -674,7 +677,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
         </section>
 
         <section class="panel panel-pad settings-card">
-          <div class="panel-head"><div class="panel-kicker">Twitch video connection</div></div><p id="twitchVideoStatus">Checking video connection…</p><p class="v5-muted">Authorize the broadcaster or an editor for the channel you import from. Tokens are encrypted on the server, separate from your public channel lookup.</p><div class="v5-row"><a class="btn" href="/.netlify/functions/twitch-auth?action=start" id="twitchVideoConnect">Connect Twitch</a><button class="btn btn-danger" id="twitchVideoDisconnect" type="button" hidden>Disconnect Twitch</button></div><div class="v5-status" id="twitchVideoMessage" role="status"></div>
+          <div class="panel-head"><div class="panel-kicker">Twitch video import (optional)</div></div><p id="twitchVideoStatus">Checking video connection…</p><p class="v5-muted">Authorize the broadcaster or an editor for the channel you import from. Tokens are encrypted on the server, separate from your public channel lookup.</p><div class="v5-row"><a class="btn" href="/.netlify/functions/twitch-auth?action=start" id="twitchVideoConnect">Connect Twitch</a><button class="btn btn-danger" id="twitchVideoDisconnect" type="button" hidden>Disconnect Twitch</button></div><div class="v5-status" id="twitchVideoMessage" role="status"></div>
         </section>
         <section class="panel panel-pad settings-card">
           <div class="panel-head"><div class="panel-kicker">Discord announcements</div></div><p>Save a webhook from your Discord channel’s integrations, then arm Discord on the Launch Deck. Sends with Live now.</p><label class="v5-field"><span>Discord webhook URL</span><input type="password" id="discordWebhook" autocomplete="off" placeholder="https://discord.com/api/webhooks/…"></label><label class="v5-field"><span>Notification role ID (optional)</span><input type="text" inputmode="numeric" id="discordRole" placeholder="The role people opt into for live alerts"></label><label class="v5-field"><span>Discord announcement copy</span><textarea id="discordCopy" maxlength="1900" placeholder="Leave blank to use your active signal. Supports {{game}}, {{title}}, and {{link}}."></textarea></label><div class="v5-muted">Preview</div><div id="discordCopyPreview" class="v5-preview-copy"></div><div class="v5-row"><button class="btn btn-primary" id="saveDiscordBtn" type="button">Save Discord</button><button class="btn btn-danger" id="clearDiscordBtn" type="button">Remove webhook</button></div><div class="v5-status" id="discordSettingsStatus" role="status"></div>
@@ -703,7 +706,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 
         <section class="panel panel-pad settings-card">
           <div class="panel-head"><div class="panel-kicker">Buffer connection</div></div>
-          <p>Your token is stored in this browser’s local storage and sent only when Uplink makes a Buffer request through its stateless proxy.</p>
+          <p id="bufferConnectionCopy">Your Buffer connection is stored in this browser only and passes through Uplink’s server functions when you send something. Nothing is kept on a server.</p>
           <button class="btn" id="replayTourBtn" style="margin-right:8px">Run guided setup</button><button class="btn" id="viewLandingBtn" style="margin-right:8px">View welcome page</button><button class="btn btn-danger" id="disconnectBtn">Disconnect + wipe local data</button>
         </section>
       </div>

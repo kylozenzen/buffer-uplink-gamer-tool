@@ -92,7 +92,7 @@ https://YOUR-UPLINK-DOMAIN/.netlify/functions/twitch-auth
 
 Use the actual production domain. Register a separate matching callback if testing an authorized flow on a deploy preview. No callback or streamer login is needed for public clip browsing and saving Ideas.
 
-Connect Twitch from **Systems → Twitch video connection**. The OAuth code flow requests `channel:manage:clips` and `editor:manage:clips`. Twitch checks the connected broadcaster/editor's permission for the clip's actual channel before each download, including reuse of an imported copy. A public username lookup alone does not authorize video downloads.
+Connect Twitch from **Settings → Twitch video import (optional)**. The OAuth code flow requests `channel:manage:clips` and `editor:manage:clips`. Twitch checks the connected broadcaster/editor's permission for the clip's actual channel before each download, including reuse of an imported copy. A public username lookup alone does not authorize video downloads.
 
 ### Video hosting
 
@@ -115,7 +115,7 @@ Landscape imports preserve the landscape file. Portrait imports require a portra
 ### Discord setup
 
 1. In your Discord channel, open **Edit Channel → Integrations → Webhooks** and copy a webhook URL. You need permission to manage that channel's webhooks.
-2. In **Systems → Discord announcements**, save the webhook, optional notification role ID, and optional Discord-specific copy. Treat the webhook like a publishing credential.
+2. In **Settings → Discord announcements**, save the webhook, optional notification role ID, and optional Discord-specific copy. Treat the webhook like a publishing credential.
 3. On the Launch Deck, arm Discord and choose **Live now**. Other modes only affect Buffer channels; they never send an immediate Discord message accidentally.
 4. After streaming, optionally enter a replay URL and choose **Update Discord** to edit the latest announcement from this browser.
 
@@ -169,7 +169,7 @@ Uplink is a local-first launch console for streamers. It connects to Buffer, let
   5. The pre-flight and transmit controls.
   6. Recent post links and engagement.
 - The walkthrough automatically runs after the first successful connection.
-- It can be replayed from the `?` button or the Systems tab.
+- It can be replayed from the `?` button or the Settings tab.
 - Tour completion is stored locally.
 
 ### Quick Compose
