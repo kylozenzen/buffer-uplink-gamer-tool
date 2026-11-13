@@ -193,6 +193,24 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .reveal-key{position:absolute;right:8px;top:7px;border:0;background:transparent;color:var(--muted);width:32px;height:32px;font:600 9px/1 'JetBrains Mono',monospace;text-transform:uppercase}
 .trust-note{margin-top:16px;padding:14px;border:1px dashed var(--line-hot);border-radius:11px;color:var(--muted);font:500 10.5px/1.6 'JetBrains Mono',monospace}
 .trust-note strong{color:var(--signal)}
+.landing{position:relative}
+.landing>:not(.ambient){position:relative;z-index:1}
+.ambient{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.orb{position:absolute;width:var(--s);height:var(--s);margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2);border-radius:50%;filter:blur(40px);opacity:.32;animation:orbDrift var(--d) ease-in-out var(--dl) infinite alternate}
+.orb-signal{background:radial-gradient(circle,var(--signal),transparent 68%)}
+.orb-live{background:radial-gradient(circle,var(--live),transparent 68%);opacity:.24}
+.orb-warn{background:radial-gradient(circle,var(--warn),transparent 68%);opacity:.2}
+@keyframes orbDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(60px,-40px,0) scale(1.08)}100%{transform:translate3d(-50px,50px,0) scale(.94)}}
+.ping{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);opacity:.75;animation:pingFloat 9s ease-in-out var(--dl) infinite alternate}
+.ping::before,.ping::after{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid var(--c);animation:pingRing 4.8s cubic-bezier(.2,.7,.3,1) var(--dl) infinite}
+.ping::after{animation-delay:calc(var(--dl) + 2.4s)}
+.ping-signal{--c:var(--signal)}.ping-live{--c:var(--live)}.ping-warn{--c:var(--warn)}
+@keyframes pingRing{0%{transform:scale(1);opacity:.7}100%{transform:scale(11);opacity:0}}
+@keyframes pingRingSm{0%{transform:scale(1);opacity:.45}100%{transform:scale(6);opacity:0}}
+@keyframes pingFloat{0%{transform:translate(0,0)}100%{transform:translate(14px,-22px)}}
+.landing-strip{background:rgba(11,17,26,.78);backdrop-filter:blur(6px)}
+@media (max-width:640px){.ping{opacity:.4}.ping:nth-of-type(even){display:none}.ping::before,.ping::after{animation-name:pingRingSm}.orb{filter:blur(30px);width:calc(var(--s) * .62);height:calc(var(--s) * .62);margin:calc(var(--s) * -.31) 0 0 calc(var(--s) * -.31)}}
+@media (prefers-reduced-motion:reduce){.orb,.ping,.ping::before,.ping::after{animation:none}.ping::before,.ping::after{display:none}}
 .sample-banner{display:flex;align-items:center;gap:12px;margin:0 0 18px;padding:11px 14px;border:1px solid rgba(255,200,87,.35);border-radius:12px;background:rgba(255,200,87,.07);color:var(--ink);font-size:13px;line-height:1.45}
 .sample-banner[hidden]{display:none}
 .sample-banner span:nth-child(2){flex:1}
@@ -384,6 +402,7 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 
 <!-- LANDING -->
 <div id="landingView" class="landing">
+  <div class="ambient" aria-hidden="true"><span class="orb orb-signal" style="top:6%;left:8%;--s:520px;--d:26s;--dl:0s"></span><span class="orb orb-live" style="top:16%;left:78%;--s:420px;--d:31s;--dl:-6s"></span><span class="orb orb-warn" style="top:34%;left:12%;--s:360px;--d:24s;--dl:-11s"></span><span class="orb orb-signal" style="top:52%;left:86%;--s:480px;--d:29s;--dl:-3s"></span><span class="orb orb-live" style="top:70%;left:6%;--s:400px;--d:34s;--dl:-14s"></span><span class="orb orb-signal" style="top:86%;left:60%;--s:460px;--d:27s;--dl:-8s"></span><span class="ping ping-signal" style="top:9%;left:46%;--dl:0s"></span><span class="ping ping-live" style="top:14%;left:90%;--dl:1.6s"></span><span class="ping ping-warn" style="top:27%;left:30%;--dl:3.1s"></span><span class="ping ping-signal" style="top:41%;left:64%;--dl:0.8s"></span><span class="ping ping-live" style="top:48%;left:8%;--dl:2.4s"></span><span class="ping ping-warn" style="top:63%;left:94%;--dl:4s"></span><span class="ping ping-signal" style="top:77%;left:38%;--dl:1.2s"></span><span class="ping ping-live" style="top:92%;left:18%;--dl:3.5s"></span></div>
   <header class="landing-nav">
     <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div class="brand-copy"><strong>Uplink</strong><span>Streamer broadcast deck</span></div></div>
     <div class="landing-actions"><a class="landing-link" href="#how-it-works">How it works</a><a class="landing-link" href="#key-safety">Is it safe?</a><button class="btn btn-primary" id="openSetupBtn">Launch Uplink</button></div>
