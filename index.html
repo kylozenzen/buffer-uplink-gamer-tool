@@ -193,6 +193,13 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .reveal-key{position:absolute;right:8px;top:7px;border:0;background:transparent;color:var(--muted);width:32px;height:32px;font:600 9px/1 'JetBrains Mono',monospace;text-transform:uppercase}
 .trust-note{margin-top:16px;padding:14px;border:1px dashed var(--line-hot);border-radius:11px;color:var(--muted);font:500 10.5px/1.6 'JetBrains Mono',monospace}
 .trust-note strong{color:var(--signal)}
+.buffer-signin-btn{width:100%;min-height:48px;margin-top:6px;font-size:15px}
+.signin-divider{display:flex;align-items:center;gap:10px;margin:16px 0 4px;color:var(--muted);font:600 11px/1 'JetBrains Mono',monospace;text-transform:uppercase}
+.signin-divider::before,.signin-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+.signin-divider[hidden],.buffer-signin-btn[hidden]{display:none}
+.key-fallback{margin-top:12px}
+.key-fallback summary{cursor:pointer;color:var(--muted);font:600 11px/1.5 'JetBrains Mono',monospace;margin-bottom:10px}
+.key-fallback summary:hover{color:var(--signal)}
 .setup-error{display:none;margin-top:12px;color:var(--live);font:500 11px/1.5 'JetBrains Mono',monospace}
 
 /* console */
@@ -437,16 +444,21 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
   <div class="setup-card">
     <div class="setup-visual">
       <div class="setup-brand"><span class="brand-mark" aria-hidden="true"></span><strong>Uplink</strong></div>
-      <div class="setup-hero"><div class="eyebrow">Credential check // keep this secret</div><h1>Treat this like your stream key.</h1><p>Your Buffer token can publish to connected social accounts. Never expose it on stream, in screenshots, or inside public source code.</p></div>
+      <div class="setup-hero"><div class="eyebrow">Credential check // keep this secret</div><h1>Treat this like your stream key.</h1><p>Your Buffer connection can publish to your social accounts. Keep it off stream and out of screenshots, and disconnect from Systems if it is ever exposed.</p></div>
       <div class="signal-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     </div>
     <div class="setup-form">
       <div class="eyebrow">Initialize connection</div><h2>Connect Buffer</h2>
-      <p>Uplink stores your access token in this browser and sends it only when making a Buffer request through the included stateless Netlify function.</p>
-      <div class="key-input-row"><div class="key-input-wrap"><label class="sr-only" for="keyInput">Buffer access token</label><input type="password" id="keyInput" placeholder="Paste Buffer access token" autocomplete="off"><button class="reveal-key" id="revealKeyBtn" type="button" aria-label="Show token">Show</button></div><button class="btn btn-primary" id="connectBtn">Initialize</button></div>
-      <div class="key-signup-note">No Buffer account yet? <a href="https://join.buffer.com/ben-campbell" target="_blank" rel="noopener">Create one to get your access token →</a></div>
+      <p>Sign in with your Buffer account and approve Uplink. Your connection is stored in this browser only and is sent to Buffer through a stateless Netlify function that never keeps it.</p>
+      <button class="btn btn-primary buffer-signin-btn" id="bufferSignInBtn" type="button" hidden>Sign in with Buffer</button>
+      <div class="signin-divider" id="signInDivider" hidden><span>or</span></div>
+      <details class="key-fallback" id="keyFallback" open>
+        <summary>Use a Buffer access token instead</summary>
+        <div class="key-input-row"><div class="key-input-wrap"><label class="sr-only" for="keyInput">Buffer access token</label><input type="password" id="keyInput" placeholder="Paste Buffer access token" autocomplete="off"><button class="reveal-key" id="revealKeyBtn" type="button" aria-label="Show token">Show</button></div><button class="btn btn-primary" id="connectBtn">Initialize</button></div>
+      </details>
+      <div class="key-signup-note">No Buffer account yet? <a href="https://join.buffer.com/ben-campbell" target="_blank" rel="noopener">Create one free, then come back and sign in →</a></div>
       <div id="setupError" class="setup-error"></div>
-      <div class="trust-note"><strong>Before connecting:</strong> inspect or deploy your own copy, keep the key out of screenshots, and revoke it immediately if it is ever exposed. Disconnecting wipes Uplink’s local data from this browser.</div>
+      <div class="trust-note"><strong>Before connecting:</strong> Uplink only asks Buffer for permission to read your channels and create posts. Disconnecting wipes Uplink’s local data, including your Buffer sign-in, from this browser.</div>
     </div>
   </div>
 </section>
@@ -729,6 +741,9 @@ kbd{display:inline-block;padding:3px 6px;border:1px solid var(--line-hot);border
 </div>
 
 <dialog class="clip-dialog" id="clipPreviewDialog" aria-labelledby="clipPreviewTitle"><div class="v5-row v5-spread"><h2 id="clipPreviewTitle">Clip preview</h2><button class="btn btn-small" id="closeClipPreview" type="button">Close</button></div><div id="clipPreviewFrame"></div><p class="v5-muted" id="clipPreviewCredit"></p></dialog>
+<script src="js/shared/connection.js"></script>
+<script src="js/shared/oauth.js"></script>
+<script src="js/config.js"></script>
 <script src="app.js"></script>
 <script src="v4.js"></script>
 <script src="v5.js"></script>

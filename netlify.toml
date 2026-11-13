@@ -5,7 +5,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Public by design (the client id is sent to every browser for Buffer sign-in,
+  # the allowed origin is just the site's own URL), so secrets scanning skips them.
+  SECRETS_SCAN_OMIT_KEYS = "BUFFER_CLIENT_ID,BUFFER_ALLOWED_ORIGINS"
 
 [functions]
   node_bundler = "esbuild"
-

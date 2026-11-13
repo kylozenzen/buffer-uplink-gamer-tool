@@ -18,6 +18,20 @@ The existing platform-specific copy, Now / Queue / Schedule / Draft modes, reusa
 
 Keep the existing repository integration. The build command is `node scripts/inject-v4.js`, with the repository root as the publish directory. The source HTML also references both feature layers directly, so local previews match deployed builds. Netlify uses Node 22 and esbuild for the functions.
 
+### Sign in with Buffer (OAuth + PKCE)
+
+Uplink uses the shared Buffer connection layer from PostIQ (`js/shared/connection.js`, `js/shared/oauth.js`, `netlify/functions/buffer-token.js`, `_shared.js`), the same code Too Soon? ships. Until a client id is set, the connect screen only shows the paste-a-token option.
+
+1. Register an OAuth app in Buffer (Settings → API → App Clients):
+   - Name: **Uplink** (shown on Buffer's consent screen)
+   - Public client with PKCE
+   - Redirect URI: `https://projectuplink.netlify.app/auth/callback.html` (add `http://localhost:8888/auth/callback.html` for `netlify dev`)
+   - Scopes: `posts:read posts:write account:read offline_access`
+2. In Netlify, set `BUFFER_CLIENT_ID` (served to the browser by `app-config`). Set `BUFFER_CLIENT_SECRET` only if Buffer issued one; it stays server-side. Optionally set `BUFFER_ALLOWED_ORIGINS=https://projectuplink.netlify.app` to lock the token function to this site.
+3. Redeploy. "Sign in with Buffer" becomes the main button and the token paste moves under "Use a Buffer access token instead".
+
+Signed-in sessions store access and refresh tokens in this browser under `uplink_buffer_*`. Expired tokens refresh before a request, a 401 triggers one refresh and retry, and **Disconnect + wipe** clears them.
+
 ### Twitch configuration
 
 Set these environment variables on Netlify (Functions scope):
@@ -66,7 +80,7 @@ Landscape imports preserve the landscape file. Portrait imports require a portra
 
 ## Credentials and privacy
 
-- Buffer keys and Discord webhooks are stored in browser local storage and sent in request bodies only to this deployment's proxy functions, then to the corresponding provider. Deployments should use HTTPS and never log request bodies.
+- Buffer sign-in tokens, pasted Buffer keys, and Discord webhooks are stored in browser local storage and sent in request bodies only to this deployment's proxy functions, then to the corresponding provider. Deployments should use HTTPS and never log request bodies.
 - Optional Twitch access and refresh tokens are encrypted with AES-256-GCM in the private Blobs store. Only an opaque HttpOnly, Secure, SameSite=Lax session cookie reaches the browser. OAuth state is verified before exchanging an authorization code.
 - Sessions expire after 30 days. Access tokens are validated at connection time and hourly during use; a 401 triggers a single refresh and retry. Disconnect removes the encrypted session and makes a best-effort access-token revocation.
 - State-changing Discord, import, and disconnect endpoints reject requests whose Origin does not match the deployment's canonical origin. Webhook and clip URLs are validated before outbound requests.
