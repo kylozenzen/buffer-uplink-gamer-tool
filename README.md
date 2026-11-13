@@ -32,6 +32,11 @@ Uplink uses the shared Buffer connection layer from PostIQ (`js/shared/connectio
 
 Signed-in sessions store access and refresh tokens in this browser under `uplink_buffer_*`. Expired tokens refresh before a request, a 401 triggers one refresh and retry, and **Disconnect + wipe** clears them.
 
+### Sample stream and safe defaults
+
+- **Try a sample stream** (Launch Deck, and Clips when no channel is linked) fills in a made-up live session and four community clips so anyone can try Uplink without a Twitch channel. Only Twitch lookups for the sample login are faked (`demo.js`); Buffer requests stay real. A banner shows while it is on, and linking a real channel or **Exit sample** turns it off.
+- New decks start in **Draft**. The first **Live now** send asks once before publishing.
+
 ### Twitch configuration
 
 Set these environment variables on Netlify (Functions scope):

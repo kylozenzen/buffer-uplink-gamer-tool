@@ -1727,7 +1727,7 @@ els.disconnectBtn.addEventListener('click', async () => {
 
 const TOUR_STEPS = [
   { title: 'Welcome to the launch deck', copy: 'Announce your stream, then turn your community’s clips into your next posts. Every destination stays visible before you transmit.', tab: 'console', selector: '[data-tour="stream"]' },
-  { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens.', tab: 'settings', selector: '[data-tour="systems"]' },
+  { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens. Not live right now? Try a sample stream on the Launch Deck.', tab: 'settings', selector: '[data-tour="systems"]' },
   { title: 'Arm the target channels', copy: 'Back on the Launch Deck, choose exactly which connected social channels receive this post. Nothing fires at a channel unless its switch is armed.', tab: 'console', selector: '[data-tour="channels"]' },
   { title: 'Choose how to write', copy: 'Saved Loadout repeats a proven announcement. Quick Compose gives you a clean field for a one-off post. Both support live Twitch tokens.', tab: 'console', selector: '[data-tour="signal"]' },
   { title: 'Run the pre-flight check', copy: 'The launch control stays locked until at least one channel and one complete signal are ready. Command or Control + Enter also transmits.', tab: 'console', selector: '[data-tour="transmit"]' },

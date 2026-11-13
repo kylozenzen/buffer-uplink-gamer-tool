@@ -240,7 +240,8 @@
 
   function launchMode() {
     const saved = localStorage.getItem(V4_STORAGE.launchMode);
-    return MODE_CONFIG[saved] ? saved : 'now';
+    // New decks start in Draft so a first click can never publish by surprise.
+    return MODE_CONFIG[saved] ? saved : 'draft';
   }
 
   function createLaunchControl() {
@@ -403,6 +404,11 @@
     }
 
     const modeConfig = MODE_CONFIG[launchMode()];
+    if (launchMode() === 'now' && !isSettingEnabled(STORAGE.confirm) && localStorage.getItem('uplink_first_live_ok') !== 'true') {
+      const first = window.confirm(`Live now publishes immediately to ${targets.length} real social account${targets.length === 1 ? '' : 's'}. Send it?\n\n(Uplink only asks this the first time. Choose Draft or Queue to review in Buffer first.)`);
+      if (!first) return;
+      localStorage.setItem('uplink_first_live_ok', 'true');
+    }
     if (isSettingEnabled(STORAGE.confirm)) {
       const verb = launchMode() === 'now' ? 'transmit now' : launchMode() === 'queue' ? 'add to the queue' : launchMode() === 'draft' ? 'save as drafts' : `schedule for ${scheduleDate().toLocaleString()}`;
       const confirmed = window.confirm(`${modeConfig.label}: “${template.label}” → ${targets.length} channel${targets.length === 1 ? '' : 's'} (${verb})?`);

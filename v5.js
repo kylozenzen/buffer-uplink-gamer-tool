@@ -159,7 +159,7 @@
     const grid = byId('clipsGrid');
     const login = localStorage.getItem(STORAGE.twitchLogin) || '';
     if (!login) {
-      grid.innerHTML = '<div class="clips-empty"><h2>Your next posts are in here.</h2>Link your Twitch username in Systems to see your community’s clips.<br><button class="btn btn-small" data-open-settings type="button" style="margin-top:15px">Link a channel</button></div>';
+      grid.innerHTML = '<div class="clips-empty"><h2>Your next posts are in here.</h2>Link your Twitch username in Systems to see your community’s clips.<br><button class="btn btn-small" data-open-settings type="button" style="margin-top:15px">Link a channel</button> <button class="btn btn-small btn-primary" data-sample-start type="button" style="margin-top:15px">Try sample clips</button></div>';
       return;
     }
     const list = [...clips.values()];
@@ -176,7 +176,7 @@
       const badge = uncertain ? 'Check Buffer' : sentCount ? `${sentCount} video post${sentCount === 1 ? '' : 's'}` : sent.idea?.id ? 'Idea saved' : '';
       const date = new Date(clip.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       const title = clip.title || 'Untitled clip';
-      const image = /^https:\/\//.test(clip.thumbnail_url || '') ? `<img src="${esc(clip.thumbnail_url)}" alt="" loading="lazy">` : '';
+      const image = /^(https:\/\/|\/sample\/)/.test(clip.thumbnail_url || '') ? `<img src="${esc(clip.thumbnail_url)}" alt="" loading="lazy">` : '';
       return `<article class="clip-card${selected.has(clip.id) ? ' selected' : ''}" data-clip-id="${esc(clip.id)}"><div class="clip-thumb">${image}<label class="clip-select"><input type="checkbox" data-select-clip="${esc(clip.id)}" aria-label="Select ${esc(title)}"${selected.has(clip.id) ? ' checked' : ''}${busy ? ' disabled' : ''}>SELECT</label><span class="clip-duration">${Math.round(clip.duration)}s</span></div><div class="clip-body"><h3>${esc(title)}</h3><div class="clip-meta">Clipped by ${esc(clip.creator_name)} · ${esc(date)}<br>${Number(clip.view_count || 0).toLocaleString()} views</div><div class="clip-buttons"><button class="btn btn-small" type="button" data-preview-clip="${esc(clip.id)}">Preview</button>${badge ? `<span class="v5-pill sent">${esc(badge)}</span>` : ''}<a href="https://clips.twitch.tv/${encodeURIComponent(clip.id)}" target="_blank" rel="noopener noreferrer">Twitch ↗</a>${uncertain ? `<button class="link-btn" type="button" data-reset-clip="${esc(clip.id)}">Review before retry</button>` : ''}</div>${selected.has(clip.id) ? `<label class="v5-field"><span>Caption / notes</span><textarea data-clip-caption="${esc(clip.id)}" maxlength="4000"${busy ? ' disabled' : ''}>${esc(caption(clip))}</textarea></label>` : ''}</div></article>`;
     }).join('');
     byId('clipsLoadMoreBtn').hidden = !nextCursor;
@@ -232,6 +232,11 @@
     const clip = clips.get(id); if (!clip) return;
     byId('clipPreviewTitle').textContent = clip.title || 'Clip preview';
     byId('clipPreviewCredit').textContent = `Clipped by ${clip.creator_name} on Twitch.`;
+    if (clip.sample) {
+      byId('clipPreviewCredit').textContent = `Clipped by ${clip.creator_name}. Sample clip: link a real channel to watch your own.`;
+      const img = document.createElement('img'); img.src = clip.thumbnail_url; img.alt = ''; img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+      byId('clipPreviewFrame').replaceChildren(img); byId('clipPreviewDialog').showModal(); return;
+    }
     const iframe = document.createElement('iframe');
     const query = new URLSearchParams({ clip: clip.id, parent: window.location.hostname, autoplay: 'false' });
     iframe.src = `https://clips.twitch.tv/embed?${query}`; iframe.title = `Twitch clip: ${clip.title}`;
