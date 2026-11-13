@@ -67,3 +67,12 @@ test('launch keyboard shortcuts cannot publish while reviewing clips', async t =
   app.document.dispatchEvent(event); await settle();
   assert.equal(app.requests.filter(request => request.body?.query?.includes('createPost') || request.url.includes('discord-announcement')).length, 0);
 });
+
+test('a fresh deck starts in Draft so the first click never publishes', async t => {
+  const app = await loadApp({}); t.after(app.cleanup);
+  delete app.data.uplink_v4_launch_mode;
+  app.click('sendBtn'); await settle();
+  const posts = app.requests.filter(request => request.body?.query?.includes('createPost'));
+  assert.ok(posts.length > 0);
+  assert.ok(posts.every(request => request.body.variables.input.saveToDraft === true));
+});

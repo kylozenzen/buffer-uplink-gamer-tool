@@ -2,6 +2,42 @@
 
 Announce the stream, find the moments your community clipped, and send the good ones to Buffer.
 
+## Why Uplink exists
+
+**Streamers are small businesses, and most of them are invisible.** Each stream has two marketing moments: telling people you're live, and turning what happened into posts afterward. Uplink handles both, using the Buffer account the streamer already has.
+
+### The audience is huge
+
+| Signal | Number | Source |
+| --- | --- | --- |
+| Live-stream watch time, all platforms, one quarter | **31.7 billion hours** (Q3 2026) | [Streams Charts](https://streamscharts.com/news/q3-2026-global-livestreaming-landscape) |
+| Twitch watch time, same quarter | **4.51 billion hours**, up 4% on Q2 | [Streams Charts](https://streamscharts.com/news/q3-2026-global-livestreaming-landscape) |
+| Unique channels that broadcast on Twitch | **7.94 million** in Q2 2026 | [Streamlabs × Stream Hatchet](https://streamlabs.com/content-hub/post/streamlabs-and-hatchet-q2-2026-live-streaming-report) |
+| Channels on Kick / YouTube Gaming | **808K** (up 45.5% YoY) / **878K** in Q2 2026 | [Streamlabs × Stream Hatchet](https://streamlabs.com/content-hub/post/streamlabs-and-hatchet-q2-2026-live-streaming-report) |
+| New streamers who started on Twitch in 2025 | **9 million** | [Twitch Recap 2025 via Tubefilter](https://www.tubefilter.com/2025/12/03/twitch-year-end-recap-2025-900-million-hours-watch-time/) |
+| Chat messages sent on Twitch in 2025 | **45 billion** | [Twitch Recap 2025 via Tubefilter](https://www.tubefilter.com/2025/12/03/twitch-year-end-recap-2025-900-million-hours-watch-time/) |
+
+### The problem: lots of streamers, very few viewers each
+
+- Twitch averages about **23 viewers per channel** (Q2 2026), compared with about 308 on YouTube Live ([Streamlabs × Stream Hatchet](https://streamlabs.com/content-hub/post/streamlabs-and-hatchet-q2-2026-live-streaming-report)). That's an average, so most channels see far fewer.
+- Streamers can't rely on the platform to send viewers. They grow off-platform, through go-live posts, Discord, and short clips.
+- Viewers already make that content. Every Twitch clip is a moment someone found worth saving. Most clips sit unused on the channel.
+
+### Where Uplink fits
+
+| Tool | What it does | What's missing for a solo streamer |
+| --- | --- | --- |
+| Zapier / IFTTT "Twitch live → Buffer" templates ([Zapier](https://zapier.com/apps/buffer/integrations/twitch/1662029/add-new-twitch-live-streams-to-buffer-queues-effortlessly-with-this-workflow), [IFTTT](https://ifttt.com/connect/buffer/twitch)) | Automatically posts stream details when you go live | Same post every time with no review, needs a separate automation account, does nothing with clips |
+| AI clippers like [Eklipse](https://eklipse.gg/compare/eklipse-vs-crossclip) | AI finds highlights in the VOD and cuts vertical shorts | Paid to clip (about $15–25/mo), publishes from its own app instead of your Buffer queue, and doesn't credit the viewers who clipped |
+| [Crossclip](https://eklipse.gg/compare/eklipse-vs-crossclip) | Turns a clip you supply into a vertical video | Export only, no posting or scheduling |
+| **Uplink** | Go-live posts with live game/title/viewer tokens to every Buffer channel + Discord, then community clips → Buffer Ideas, drafts or queue | Built on the streamer's existing Buffer account. Free. You review everything first, and viewers get credit for their clips |
+
+The existing Zapier and IFTTT templates show that streamers already try to connect Twitch to Buffer. We didn't find a tool that combines the go-live announcement and the clip handoff in one place on top of Buffer.
+
+### Why it matters for Buffer
+
+Uplink brings Buffer to a large group of creators who already think in terms of scheduled posts, and gives them a reason to post every time they stream. Every announcement and clip goes through the streamer's own Buffer queue.
+
 ## What is new
 
 - **Discord launch target:** a separate webhook destination alongside Buffer channels. Custom Discord copy supports the same live Twitch tokens. Only a deliberately selected role can be pinged; `@everyone` and other mentions are suppressed.
@@ -17,6 +53,25 @@ The existing platform-specific copy, Now / Queue / Schedule / Draft modes, reusa
 ## Deploy on Netlify
 
 Keep the existing repository integration. The build command is `node scripts/inject-v4.js`, with the repository root as the publish directory. The source HTML also references both feature layers directly, so local previews match deployed builds. Netlify uses Node 22 and esbuild for the functions.
+
+### Sign in with Buffer (OAuth + PKCE)
+
+Uplink uses the shared Buffer connection layer from PostIQ (`js/shared/connection.js`, `js/shared/oauth.js`, `netlify/functions/buffer-token.js`, `_shared.js`), the same code Too Soon? ships. Until a client id is set, the connect screen only shows the paste-a-token option.
+
+1. Register an OAuth app in Buffer (Settings → API → App Clients):
+   - Name: **Uplink** (shown on Buffer's consent screen)
+   - Public client with PKCE
+   - Redirect URI: `https://projectuplink.netlify.app/auth/callback.html` (add `http://localhost:8888/auth/callback.html` for `netlify dev`)
+   - Scopes: `posts:read posts:write account:read offline_access`
+2. In Netlify, set `BUFFER_CLIENT_ID` (served to the browser by `app-config`). Set `BUFFER_CLIENT_SECRET` only if Buffer issued one; it stays server-side. Optionally set `BUFFER_ALLOWED_ORIGINS=https://projectuplink.netlify.app` to lock the token function to this site.
+3. Redeploy. "Sign in with Buffer" becomes the main button and the token paste moves under "Use a Buffer access token instead".
+
+Signed-in sessions store access and refresh tokens in this browser under `uplink_buffer_*`. Expired tokens refresh before a request, a 401 triggers one refresh and retry, and **Disconnect + wipe** clears them.
+
+### Sample stream and safe defaults
+
+- **Try a sample stream** (Launch Deck, and Clips when no channel is linked) fills in a made-up live session and four community clips so anyone can try Uplink without a Twitch channel. Only Twitch lookups for the sample login are faked (`demo.js`); Buffer requests stay real. A banner shows while it is on, and linking a real channel or **Exit sample** turns it off.
+- New decks start in **Draft**. The first **Live now** send asks once before publishing.
 
 ### Twitch configuration
 
@@ -66,7 +121,7 @@ Landscape imports preserve the landscape file. Portrait imports require a portra
 
 ## Credentials and privacy
 
-- Buffer keys and Discord webhooks are stored in browser local storage and sent in request bodies only to this deployment's proxy functions, then to the corresponding provider. Deployments should use HTTPS and never log request bodies.
+- Buffer sign-in tokens, pasted Buffer keys, and Discord webhooks are stored in browser local storage and sent in request bodies only to this deployment's proxy functions, then to the corresponding provider. Deployments should use HTTPS and never log request bodies.
 - Optional Twitch access and refresh tokens are encrypted with AES-256-GCM in the private Blobs store. Only an opaque HttpOnly, Secure, SameSite=Lax session cookie reaches the browser. OAuth state is verified before exchanging an authorization code.
 - Sessions expire after 30 days. Access tokens are validated at connection time and hourly during use; a 401 triggers a single refresh and retry. Disconnect removes the encrypted session and makes a best-effort access-token revocation.
 - State-changing Discord, import, and disconnect endpoints reject requests whose Origin does not match the deployment's canonical origin. Webhook and clip URLs are validated before outbound requests.

@@ -24,6 +24,36 @@ const STORAGE = {
 
 const BUFFER_ENDPOINT = '/.netlify/functions/buffer-proxy';
 
+/* ---------- Buffer sign-in (OAuth + PKCE via the shared layer) ----------
+   Signing in with Buffer stores tokens through BufferConnection (keys prefixed
+   `uplink_buffer_…`, so "Disconnect + wipe" clears them too). STORAGE.key then
+   holds this marker instead of a pasted token, which keeps every existing
+   "am I connected?" check working. bufferRequest swaps the marker for a fresh
+   access token (refreshing it when needed) right before each request. */
+const OAUTH_MARKER = 'oauth';
+const bufferConnection = () => globalThis.BufferConnection || null;
+
+function adoptOAuthConnection() {
+  const bc = bufferConnection();
+  try {
+    if (bc && bc.hasConnection() && !localStorage.getItem(STORAGE.key)) localStorage.setItem(STORAGE.key, OAUTH_MARKER);
+  } catch { /* not initialised yet: the token-paste path still works */ }
+}
+
+async function resolveBufferToken(key, { forceRefresh = false } = {}) {
+  if (key !== OAUTH_MARKER) return key;
+  const bc = bufferConnection();
+  if (!bc) throw Object.assign(new Error('Buffer sign-in did not load. Refresh the page and sign in again.'), { code: 'AUTH_ERROR' });
+  await globalThis.UPLINK_CONFIG_READY;
+  try {
+    const token = forceRefresh ? (await bc.refreshNow())?.accessToken : await bc.getValidAccessToken();
+    if (!token) throw new Error('No Buffer session found');
+    return token;
+  } catch (error) {
+    throw Object.assign(new Error(`Your Buffer sign-in expired (${error.message}). Sign in with Buffer again`), { code: 'AUTH_ERROR', oauth: true });
+  }
+}
+
 const $ = (id) => document.getElementById(id);
 const els = {
   landingView: $('landingView'),
@@ -226,6 +256,10 @@ function normalizeTemplates(templates) {
 }
 
 function boot() {
+  adoptOAuthConnection();
+  if (/[?&]connected=buffer\b/.test(location.search || '')) {
+    try { history.replaceState(null, '', location.pathname + (location.hash || '')); } catch {}
+  }
   const key = localStorage.getItem(STORAGE.key);
   if (!key) {
     showLanding();
@@ -279,8 +313,46 @@ function openSetup() {
   localStorage.setItem(STORAGE.seenLanding, 'true');
   els.setupView.style.display = 'grid';
   document.body.style.overflow = 'hidden';
-  window.setTimeout(() => els.keyInput.focus(), 60);
+  syncSignInOption();
 }
+
+// "Sign in with Buffer" leads once a client id is configured; the pasted token
+// stays available underneath as the fallback (and is the only path until then).
+async function syncSignInOption() {
+  const signIn = $('bufferSignInBtn');
+  const keyPanel = $('keyFallback');
+  if (!signIn || !keyPanel) { window.setTimeout(() => els.keyInput.focus(), 60); return; }
+  await (globalThis.UPLINK_CONFIG_READY || Promise.resolve());
+  const enabled = !!globalThis.UPLINK_CONFIG?.BUFFER_CLIENT_ID && !!globalThis.BufferOAuth;
+  signIn.hidden = !enabled;
+  signIn.disabled = false;
+  signIn.textContent = 'Sign in with Buffer';
+  const divider = $('signInDivider');
+  if (divider) divider.hidden = !enabled;
+  keyPanel.open = !enabled;
+  window.setTimeout(() => (enabled ? signIn : els.keyInput).focus(), 60);
+}
+
+$('bufferSignInBtn')?.addEventListener('click', async () => {
+  const signIn = $('bufferSignInBtn');
+  const cfg = globalThis.UPLINK_CONFIG;
+  signIn.disabled = true;
+  signIn.textContent = 'Opening Buffer…';
+  els.setupError.style.display = 'none';
+  try {
+    await globalThis.BufferOAuth.startAuthorization({
+      prefix: cfg.prefix,
+      clientId: cfg.BUFFER_CLIENT_ID,
+      redirectUri: `${location.origin}/auth/callback.html`,
+      scope: cfg.scope,
+      returnTo: '/',
+    });
+  } catch (error) {
+    showSetupError(error.message || 'Could not open Buffer sign-in.');
+    signIn.disabled = false;
+    signIn.textContent = 'Sign in with Buffer';
+  }
+});
 
 function closeSetup() {
   els.setupView.style.display = 'none';
@@ -371,18 +443,27 @@ function showSetupError(message) {
 
 function readableError(error, fallback) {
   if (isAuthError(error)) {
+    if (error.oauth || localStorage.getItem(STORAGE.key) === OAUTH_MARKER) {
+      return `${error.message.replace(/\.$/, '')}. Disconnect in Systems, then choose Sign in with Buffer.`;
+    }
     return `Buffer rejected that token: ${error.message}. Generate a fresh token in Buffer and try again.`;
   }
   if (error?.code === 'RATE_LIMIT') return 'Buffer is rate-limiting requests. Give the network a moment, then retry.';
   return `${fallback} ${error?.message || ''}`.trim();
 }
 
-async function bufferRequest(key, query, variables = {}) {
+async function bufferRequest(key, query, variables = {}, retried = false) {
+  const token = await resolveBufferToken(key, { forceRefresh: retried });
   const response = await fetch(BUFFER_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: key, query, variables }),
+    body: JSON.stringify({ token, query, variables }),
   });
+
+  // A signed-in session whose access token was revoked early: refresh once and retry.
+  if (key === OAUTH_MARKER && !retried && (response.status === 401 || response.status === 403)) {
+    return bufferRequest(key, query, variables, true);
+  }
 
   let data;
   try {
@@ -1646,7 +1727,7 @@ els.disconnectBtn.addEventListener('click', async () => {
 
 const TOUR_STEPS = [
   { title: 'Welcome to the launch deck', copy: 'Announce your stream, then turn your community’s clips into your next posts. Every destination stays visible before you transmit.', tab: 'console', selector: '[data-tour="stream"]' },
-  { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens.', tab: 'settings', selector: '[data-tour="systems"]' },
+  { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens. Not live right now? Try a sample stream on the Launch Deck.', tab: 'settings', selector: '[data-tour="systems"]' },
   { title: 'Arm the target channels', copy: 'Back on the Launch Deck, choose exactly which connected social channels receive this post. Nothing fires at a channel unless its switch is armed.', tab: 'console', selector: '[data-tour="channels"]' },
   { title: 'Choose how to write', copy: 'Saved Loadout repeats a proven announcement. Quick Compose gives you a clean field for a one-off post. Both support live Twitch tokens.', tab: 'console', selector: '[data-tour="signal"]' },
   { title: 'Run the pre-flight check', copy: 'The launch control stays locked until at least one channel and one complete signal are ready. Command or Control + Enter also transmits.', tab: 'console', selector: '[data-tour="transmit"]' },
