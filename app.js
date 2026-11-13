@@ -169,6 +169,7 @@ const els = {
 
   tourBackdrop: $('tourBackdrop'),
   tourSpotlight: $('tourSpotlight'),
+  tourCard: $('tourCard'),
   tourStep: $('tourStep'),
   tourTitle: $('tourTitle'),
   tourCopy: $('tourCopy'),
@@ -444,7 +445,7 @@ function showSetupError(message) {
 function readableError(error, fallback) {
   if (isAuthError(error)) {
     if (error.oauth || localStorage.getItem(STORAGE.key) === OAUTH_MARKER) {
-      return `${error.message.replace(/\.$/, '')}. Disconnect in Systems, then choose Sign in with Buffer.`;
+      return `${error.message.replace(/\.$/, '')}. Disconnect in Settings, then choose Sign in with Buffer.`;
     }
     return `Buffer rejected that token: ${error.message}. Generate a fresh token in Buffer and try again.`;
   }
@@ -947,7 +948,7 @@ function insertAtCursor(textarea, value) {
 els.tplInsertLinkBtn.addEventListener('click', () => {
   const link = localStorage.getItem(STORAGE.streamLink);
   if (!link) {
-    els.tplInsertLinkStatus.textContent = 'No stream link saved. Use {{link}} or add one in Systems.';
+    els.tplInsertLinkStatus.textContent = 'No stream link saved. Use {{link}} or add one in Settings.';
     return;
   }
   if (els.tplCopy.value.includes(link)) {
@@ -1005,11 +1006,13 @@ function renderTwitchState(data) {
   els.topTwitchDot.classList.remove('live');
   els.topTwitchDot.classList.add('offline');
 
+  document.body.classList.toggle('no-twitch', !login);
+  if (els.openSystemsBtn) els.openSystemsBtn.textContent = login ? 'Channel settings' : 'Link Twitch channel';
   if (!login) {
     els.streamLiveFlag.textContent = 'Twitch standby';
     els.streamStatusLabel.textContent = 'No Twitch channel linked';
-    els.streamGame.textContent = 'Connect your channel for live intelligence';
-    els.streamTitle.textContent = 'Uplink can pull your current game, title, viewer count, and live thumbnail into the deck.';
+    els.streamGame.textContent = 'Link your Twitch channel';
+    els.streamTitle.textContent = 'Uplink fills your posts with your live game, title and thumbnail. No channel handy? Try the sample stream.';
     els.streamViewers.textContent = '—';
     els.streamStarted.textContent = '—';
     els.streamSignal.textContent = 'Offline';
@@ -1121,7 +1124,7 @@ els.saveStreamLinkBtn.addEventListener('click', () => {
 els.tplTwitchBtn.addEventListener('click', async () => {
   const login = localStorage.getItem(STORAGE.twitchLogin);
   if (!login) {
-    els.tplImageStatus.textContent = 'Link your Twitch channel in Systems first.';
+    els.tplImageStatus.textContent = 'Link your Twitch channel in Settings first.';
     return;
   }
   els.tplImageStatus.textContent = 'Scanning Twitch…';
@@ -1726,13 +1729,12 @@ els.disconnectBtn.addEventListener('click', async () => {
 /* ---------- guided onboarding ---------- */
 
 const TOUR_STEPS = [
-  { title: 'Welcome to the launch deck', copy: 'Announce your stream, then turn your community’s clips into your next posts. Every destination stays visible before you transmit.', tab: 'console', selector: '[data-tour="stream"]' },
-  { title: 'Connect Twitch intelligence', copy: 'Systems is where you link a public Twitch username and save your stream URL. Live data powers the game, title, viewer, link, and thumbnail tokens. Not live right now? Try a sample stream on the Launch Deck.', tab: 'settings', selector: '[data-tour="systems"]' },
-  { title: 'Arm the target channels', copy: 'Back on the Launch Deck, choose exactly which connected social channels receive this post. Nothing fires at a channel unless its switch is armed.', tab: 'console', selector: '[data-tour="channels"]' },
-  { title: 'Choose how to write', copy: 'Saved Loadout repeats a proven announcement. Quick Compose gives you a clean field for a one-off post. Both support live Twitch tokens.', tab: 'console', selector: '[data-tour="signal"]' },
-  { title: 'Run the pre-flight check', copy: 'The launch control stays locked until at least one channel and one complete signal are ready. Command or Control + Enter also transmits.', tab: 'console', selector: '[data-tour="transmit"]' },
-  { title: 'Jump back into the conversation', copy: 'Recent transmissions keep direct social permalinks when Buffer exposes them. Open a post from here and start interacting while the stream warms up.', tab: 'console', selector: '[data-tour="history"]' },
-  { title: 'Keep the highlights going', copy: 'Clips includes the moments you and your viewers captured. Preview a few, add captions, and save links as Ideas. Connect Twitch in Systems to import actual videos into Buffer drafts or queues.', tab: 'clips', selector: '.clips-actions' },
+  { title: 'Welcome to Uplink', copy: 'Uplink does two jobs: announce your stream everywhere at once, then turn the clips your viewers made into new posts. No Twitch channel handy? Use Try a sample stream right here to follow along.', tab: 'console', selector: '[data-tour="stream"]' },
+  { title: '1. Pick where it goes', copy: 'Switch on the Buffer channels this post should go to. Nothing is sent to a channel that is switched off. Add a Discord webhook in Settings and your server gets the announcement too.', tab: 'console', selector: '[data-tour="channels"]' },
+  { title: '2. Write the post', copy: 'Pick a saved loadout for your usual announcement, or use Quick Compose for a one-off. Tokens like {{game}} and {{link}} fill in from your stream. Want a different version for one channel? Open Per-channel versions. Edit or add loadouts in the Loadouts tab.', tab: 'console', selector: '[data-tour="signal"]' },
+  { title: '3. Choose how it sends', copy: 'Draft is on to start, so posts land in Buffer for you to review first. Switch to Queue or Schedule anytime, or Live now when you want it out immediately. Then press the big button.', tab: 'console', selector: '[data-tour="transmit"]' },
+  { title: 'After the stream: clips', copy: 'Clips shows the moments you and your viewers clipped. Pick the best ones, add a caption, and save them to Buffer as Ideas, drafts or queued posts. Every clipper gets credit.', tab: 'clips', selector: '.clips-actions' },
+  { title: 'Settings, when you are ready', copy: 'Link your Twitch username, add Discord, and turn on sounds or a final confirm before sending. You can replay this tour anytime with the ? button.', tab: 'settings', selector: '[data-tour="systems"]' },
 ];
 
 function maybeStartOnboarding() {
@@ -1766,11 +1768,21 @@ function renderTourStep() {
     const target = document.querySelector(step.selector);
     if (!target) {
       els.tourSpotlight.classList.remove('active');
+      els.tourBackdrop.classList.remove('spotlit');
       return;
     }
-    target.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    if (window.innerWidth <= 650) {
+      // Phones: the tour card covers the bottom, so park the target near the top.
+      const bar = document.querySelector('#mainApp .topbar');
+      const barBottom = bar && getComputedStyle(bar).position === 'sticky' ? bar.getBoundingClientRect().height + 14 : 0;
+      window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - barBottom - 16), behavior: instant });
+    } else {
+      target.scrollIntoView({ block: 'center', behavior: instant });
+    }
     target.classList.add('tour-target-pulse');
-    window.setTimeout(() => positionTourSpotlight(target), 300);
+    // Re-measure while the page settles so the outline lands on the target.
+    [60, 350, 750].forEach((delay) => window.setTimeout(() => positionTourSpotlight(target), delay));
   }, 80);
 }
 
@@ -1778,11 +1790,15 @@ function positionTourSpotlight(target) {
   if (!state.tourActive || !target) return;
   const rect = target.getBoundingClientRect();
   const pad = 8;
+  const top = Math.max(8, rect.top - pad);
+  let bottomLimit = window.innerHeight - 8;
+  if (window.innerWidth <= 650 && els.tourCard) bottomLimit = Math.min(bottomLimit, els.tourCard.getBoundingClientRect().top - 10);
   els.tourSpotlight.style.left = `${Math.max(8, rect.left - pad)}px`;
-  els.tourSpotlight.style.top = `${Math.max(8, rect.top - pad)}px`;
+  els.tourSpotlight.style.top = `${top}px`;
   els.tourSpotlight.style.width = `${Math.min(window.innerWidth - 16, rect.width + pad * 2)}px`;
-  els.tourSpotlight.style.height = `${Math.min(window.innerHeight - 16, rect.height + pad * 2)}px`;
+  els.tourSpotlight.style.height = `${Math.max(40, Math.min(bottomLimit - top, rect.bottom + pad - top))}px`;
   els.tourSpotlight.classList.add('active');
+  els.tourBackdrop.classList.add('spotlit');
 }
 
 function finishTour(completed = true) {
@@ -1790,10 +1806,18 @@ function finishTour(completed = true) {
   els.tourBackdrop.classList.remove('show');
   els.tourBackdrop.setAttribute('aria-hidden', 'true');
   els.tourSpotlight.classList.remove('active');
+  els.tourBackdrop.classList.remove('spotlit');
   document.querySelectorAll('.tour-target-pulse').forEach((element) => element.classList.remove('tour-target-pulse'));
   document.body.style.overflow = '';
   if (completed) localStorage.setItem(STORAGE.onboarding, 'true');
   switchTab('console');
+  // New here without a channel? Point at the quickest way to see Uplink work.
+  const sample = document.getElementById('sampleStreamBtn');
+  if (sample && !sample.hidden && document.body.classList.contains('no-twitch')) {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    sample.classList.add('tour-target-pulse');
+    window.setTimeout(() => sample.classList.remove('tour-target-pulse'), 4000);
+  }
 }
 
 els.tourSkipBtn.addEventListener('click', () => finishTour(true));
@@ -1804,10 +1828,16 @@ els.tourNextBtn.addEventListener('click', () => {
   if (state.tourIndex >= TOUR_STEPS.length - 1) finishTour(true);
   else { state.tourIndex += 1; renderTourStep(); }
 });
-window.addEventListener('resize', () => {
-  if (!state.tourActive) return;
-  positionTourSpotlight(document.querySelector(TOUR_STEPS[state.tourIndex].selector));
-});
+let tourFrame = 0;
+const followTourTarget = () => {
+  if (!state.tourActive || tourFrame) return;
+  tourFrame = window.requestAnimationFrame(() => {
+    tourFrame = 0;
+    positionTourSpotlight(document.querySelector(TOUR_STEPS[state.tourIndex].selector));
+  });
+};
+window.addEventListener('resize', followTourTarget);
+window.addEventListener('scroll', followTourTarget, { passive: true });
 
 /* ---------- navigation + shortcuts ---------- */
 

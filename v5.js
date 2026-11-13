@@ -56,7 +56,7 @@
     if (!container) return;
     const configured = Boolean(discord.webhook);
     const active = Boolean(getDiscordTarget());
-    const description = !configured ? 'Add a webhook in Systems to announce to your community.' : mode() !== 'now' ? 'Discord sends with Live now. This mode only targets Buffer.' : 'Your announcement goes directly to Discord alongside your social posts.';
+    const description = !configured ? 'Add a webhook in Settings to announce to your community.' : mode() !== 'now' ? 'Discord sends with Live now. This mode only targets Buffer.' : 'Your announcement goes directly to Discord alongside your social posts.';
     container.innerHTML = `<button type="button" id="discordArmBtn" class="v5-discord-card${active ? ' active' : ''}" aria-pressed="${active}" aria-disabled="${configured && mode() !== 'now'}"><span><strong>Discord announcement</strong><small>${esc(description)}</small></span><span class="v5-pill">${!configured ? 'SET UP' : active ? 'ARMED' : 'STANDBY'}</span></button>`;
     byId('discordArmBtn').addEventListener('click', () => {
       if (!configured) { switchTab('settings'); byId('discordWebhook').focus(); return; }
@@ -115,7 +115,7 @@
     catch { auth = { connected: false, configured: true, maxVideoMB: 18, unavailable: true }; }
     const name = auth.user?.name || 'Twitch';
     byId('clipsConnectionTitle').textContent = auth.connected ? `Video imports connected as ${name}` : 'Browse first. Connect when you need video.';
-    byId('clipsConnectionNote').textContent = auth.connected ? `Import your channel’s clips or clips you’re authorized to edit. Video imports: up to ${auth.maxVideoMB} MB. Portrait needs a version already made in Twitch.` : auth.unavailable ? 'Video connection could not be checked. Clip browsing and Ideas still work. Try again in Systems.' : !auth.configured ? 'This deployment needs Twitch credentials configured before clip browsing or video import can connect.' : 'Public clips include moments you and your viewers created. Connect Twitch only when you want to import video.';
+    byId('clipsConnectionNote').textContent = auth.connected ? `Import your channel’s clips or clips you’re authorized to edit. Video imports: up to ${auth.maxVideoMB} MB. Portrait needs a version already made in Twitch.` : auth.unavailable ? 'Video connection could not be checked. Clip browsing and Ideas still work. Try again in Settings.' : !auth.configured ? 'This deployment needs Twitch credentials configured before clip browsing or video import can connect.' : 'Public clips include moments you and your viewers created. Connect Twitch only when you want to import video.';
     byId('clipsConnectBtn').hidden = Boolean(auth.connected || !auth.configured);
     byId('twitchVideoConnect').hidden = Boolean(auth.connected || !auth.configured);
     byId('twitchVideoDisconnect').hidden = !auth.connected;
@@ -159,7 +159,7 @@
     const grid = byId('clipsGrid');
     const login = localStorage.getItem(STORAGE.twitchLogin) || '';
     if (!login) {
-      grid.innerHTML = '<div class="clips-empty"><h2>Your next posts are in here.</h2>Link your Twitch username in Systems to see your community’s clips.<br><button class="btn btn-small" data-open-settings type="button" style="margin-top:15px">Link a channel</button> <button class="btn btn-small btn-primary" data-sample-start type="button" style="margin-top:15px">Try sample clips</button></div>';
+      grid.innerHTML = '<div class="clips-empty"><h2>Your next posts are in here.</h2>Link your Twitch username in Settings to see your community’s clips.<br><button class="btn btn-small" data-open-settings type="button" style="margin-top:15px">Link a channel</button> <button class="btn btn-small btn-primary" data-sample-start type="button" style="margin-top:15px">Try sample clips</button></div>';
       return;
     }
     const list = [...clips.values()];
